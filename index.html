@@ -8,7 +8,7 @@
       name="description"
       content="匿名搜索 Danbooru posts，支持多 tag 输入、本地过滤和图片预览。"
     >
-    <link rel="stylesheet" href="css/styles.css?v=20260518-ui2">
+    <link rel="stylesheet" href="css/styles.css?v=20260518-mobile-gallery">
   </head>
   <body>
     <main class="app-shell">
@@ -145,15 +145,32 @@
             <p class="status-label">预览</p>
             <h2 id="dialogTitle">Post</h2>
           </div>
-          <button class="icon-button" id="closeDialogButton" type="button" aria-label="关闭预览">
-            ×
-          </button>
+          <div class="dialog-actions">
+            <button
+              class="meta-toggle-button"
+              id="metaToggleButton"
+              type="button"
+              aria-controls="dialogMeta"
+              aria-expanded="false"
+            >
+              信息
+            </button>
+            <button class="icon-button" id="closeDialogButton" type="button" aria-label="关闭预览">
+              ×
+            </button>
+          </div>
         </div>
         <div class="dialog-content">
-          <div class="dialog-media">
+          <div class="dialog-media" id="dialogMedia">
+            <button class="preview-nav preview-nav-prev" id="prevPostButton" type="button" aria-label="上一张">
+              ‹
+            </button>
             <img id="dialogImage" alt="">
+            <button class="preview-nav preview-nav-next" id="nextPostButton" type="button" aria-label="下一张">
+              ›
+            </button>
           </div>
-          <aside class="dialog-meta">
+          <aside class="dialog-meta" id="dialogMeta">
             <p class="dialog-tags" id="dialogTags"></p>
             <div class="dialog-stats" aria-label="图片信息">
               <div>
@@ -199,6 +216,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260518-ui2"></script>
+    <script src="js/app.js?v=20260518-mobile-gallery"></script>
   </body>
 </html>

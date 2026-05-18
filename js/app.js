@@ -31,7 +31,11 @@ const popularTags = document.querySelector("#popularTags");
 const previewDialog = document.querySelector("#previewDialog");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
+const dialogMedia = document.querySelector("#dialogMedia");
 const dialogImage = document.querySelector("#dialogImage");
+const prevPostButton = document.querySelector("#prevPostButton");
+const nextPostButton = document.querySelector("#nextPostButton");
+const metaToggleButton = document.querySelector("#metaToggleButton");
 const dialogTags = document.querySelector("#dialogTags");
 const dialogRating = document.querySelector("#dialogRating");
 const dialogScore = document.querySelector("#dialogScore");
@@ -39,9 +43,14 @@ const dialogDimensions = document.querySelector("#dialogDimensions");
 const dialogSize = document.querySelector("#dialogSize");
 const dialogPostLink = document.querySelector("#dialogPostLink");
 const dialogFileLink = document.querySelector("#dialogFileLink");
+const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 
 let activeController = null;
 let selectedTags = [];
+let currentPosts = [];
+let activePreviewIndex = -1;
+let previewScrollY = 0;
+let previewTouchStart = null;
 
 const RATING_LABELS = {
   g: "GENERAL",
@@ -175,15 +184,35 @@ function formatPostCount(count) {
   return String(value);
 }
 
-function getDimensions(post) {
-  const width = post.image_width || post.media_asset?.image_width;
-  const height = post.image_height || post.media_asset?.image_height;
+function getPostSize(post) {
+  const width = Number(post.image_width || post.media_asset?.image_width);
+  const height = Number(post.image_height || post.media_asset?.image_height);
 
-  if (!width || !height) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return { width, height };
+}
+
+function getPostAspectRatio(post) {
+  const size = getPostSize(post);
+  return size ? size.width / size.height : 1;
+}
+
+function getPostAspectRatioValue(post) {
+  const size = getPostSize(post);
+  return size ? `${size.width} / ${size.height}` : "1 / 1";
+}
+
+function getDimensions(post) {
+  const size = getPostSize(post);
+
+  if (!size) {
     return "-";
   }
 
-  return `${width}x${height}`;
+  return `${size.width}x${size.height}`;
 }
 
 function collectAllTags(post) {
@@ -520,57 +549,114 @@ function getPendingTags() {
   return uniqueTags([...selectedTags, ...parseTags(tagInput.value)]);
 }
 
-function renderPosts(posts) {
-  gallery.replaceChildren();
-  emptyState.hidden = posts.length > 0;
+function shouldUseMobileMasonry() {
+  return mobileGalleryQuery.matches && !gallery.classList.contains("is-list");
+}
 
-  if (posts.length === 0) {
-    emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
-    emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
-    return;
-  }
+function createPostCard(post, index) {
+  const node = postTemplate.content.firstElementChild.cloneNode(true);
+  const imageButton = node.querySelector(".image-button");
+  const image = node.querySelector("img");
+  const ratingBadge = node.querySelector(".rating-badge");
+  const scoreLabel = node.querySelector(".score-label");
+  const postId = node.querySelector(".post-id");
+  const tags = node.querySelector(".post-tags");
+  const postLink = node.querySelector(".post-link");
+  const previewUrl = getPreviewUrl(post);
 
+  node.dataset.postIndex = String(index);
+  node.style.setProperty("--post-aspect-ratio", getPostAspectRatioValue(post));
+  image.src = previewUrl;
+  image.alt = `Danbooru post ${post.id}`;
+  ratingBadge.textContent = formatRating(post.rating);
+  ratingBadge.classList.add(`rating-${post.rating || "unknown"}`);
+  scoreLabel.textContent = `score ${post.score ?? 0}`;
+  postId.textContent = `#${post.id}`;
+  tags.textContent = getTagSummary(post) || `post ${post.id}`;
+  postLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
+
+  imageButton.addEventListener("click", () => openPreview(index));
+  return node;
+}
+
+function renderFlatGallery(posts) {
   const fragment = document.createDocumentFragment();
 
-  posts.forEach((post) => {
-    const node = postTemplate.content.firstElementChild.cloneNode(true);
-    const imageButton = node.querySelector(".image-button");
-    const image = node.querySelector("img");
-    const ratingBadge = node.querySelector(".rating-badge");
-    const scoreLabel = node.querySelector(".score-label");
-    const postId = node.querySelector(".post-id");
-    const tags = node.querySelector(".post-tags");
-    const postLink = node.querySelector(".post-link");
-    const previewUrl = getPreviewUrl(post);
-
-    image.src = previewUrl;
-    image.alt = `Danbooru post ${post.id}`;
-    ratingBadge.textContent = formatRating(post.rating);
-    ratingBadge.classList.add(`rating-${post.rating || "unknown"}`);
-    scoreLabel.textContent = `score ${post.score ?? 0}`;
-    postId.textContent = `#${post.id}`;
-    tags.textContent = getTagSummary(post) || `post ${post.id}`;
-    postLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
-
-    imageButton.addEventListener("click", () => openPreview(post, node));
-    fragment.append(node);
+  posts.forEach((post, index) => {
+    fragment.append(createPostCard(post, index));
   });
 
   gallery.append(fragment);
 }
 
-function openPreview(post, selectedNode) {
-  const largeUrl = getLargeUrl(post);
+function renderMobileMasonry(posts) {
+  const columns = [document.createElement("div"), document.createElement("div")];
+  const columnHeights = [0, 0];
 
+  columns.forEach((column) => {
+    column.className = "gallery-column";
+  });
+
+  posts.forEach((post, index) => {
+    const targetColumn = columnHeights[0] <= columnHeights[1] ? 0 : 1;
+    columns[targetColumn].append(createPostCard(post, index));
+    columnHeights[targetColumn] += 1 / Math.max(getPostAspectRatio(post), 0.1);
+  });
+
+  gallery.append(...columns);
+}
+
+function renderGallery() {
+  gallery.replaceChildren();
+  gallery.classList.toggle("is-mobile-masonry", shouldUseMobileMasonry());
+
+  if (currentPosts.length === 0) {
+    return;
+  }
+
+  if (shouldUseMobileMasonry()) {
+    renderMobileMasonry(currentPosts);
+  } else {
+    renderFlatGallery(currentPosts);
+  }
+
+  if (activePreviewIndex >= 0) {
+    setSelectedPost(activePreviewIndex);
+  }
+}
+
+function renderPosts(posts) {
+  currentPosts = posts;
+  activePreviewIndex = -1;
+  emptyState.hidden = posts.length > 0;
+
+  if (posts.length === 0) {
+    emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
+    emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
+    renderGallery();
+    return;
+  }
+
+  renderGallery();
+}
+
+function setSelectedPost(index) {
   gallery.querySelectorAll(".post-card.is-selected").forEach((node) => {
     node.classList.remove("is-selected");
   });
 
+  const selectedNode = gallery.querySelector(`[data-post-index="${index}"]`);
+
   if (selectedNode) {
     selectedNode.classList.add("is-selected");
   }
+}
 
-  dialogTitle.textContent = `Post #${post.id}`;
+function updatePreview(post, index) {
+  const largeUrl = getLargeUrl(post);
+
+  setSelectedPost(index);
+  dialogTitle.textContent = `Post #${post.id} · ${index + 1}/${currentPosts.length}`;
   dialogImage.src = largeUrl;
   dialogImage.alt = `Danbooru post ${post.id}`;
   dialogTags.textContent = getTagSummary(post) || post.tag_string || "";
@@ -580,7 +666,83 @@ function openPreview(post, selectedNode) {
   dialogSize.textContent = formatBytes(post.file_size || post.media_asset?.file_size);
   dialogPostLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
   dialogFileLink.href = largeUrl;
-  previewDialog.showModal();
+  prevPostButton.hidden = currentPosts.length < 2;
+  nextPostButton.hidden = currentPosts.length < 2;
+}
+
+function openPreview(index) {
+  const post = currentPosts[index];
+
+  if (!post) {
+    return;
+  }
+
+  previewScrollY = window.scrollY;
+  activePreviewIndex = index;
+  previewDialog.classList.remove("is-meta-open");
+  metaToggleButton.setAttribute("aria-expanded", "false");
+  updatePreview(post, index);
+
+  if (!previewDialog.open) {
+    previewDialog.showModal();
+  }
+}
+
+function navigatePreview(direction) {
+  if (currentPosts.length < 2 || activePreviewIndex < 0) {
+    return;
+  }
+
+  const nextIndex = (activePreviewIndex + direction + currentPosts.length) % currentPosts.length;
+  const nextPost = currentPosts[nextIndex];
+
+  if (!nextPost) {
+    return;
+  }
+
+  activePreviewIndex = nextIndex;
+  updatePreview(nextPost, nextIndex);
+}
+
+function handlePreviewTouchStart(event) {
+  if (event.touches.length !== 1) {
+    previewTouchStart = null;
+    return;
+  }
+
+  const touch = event.touches[0];
+  previewTouchStart = {
+    x: touch.clientX,
+    y: touch.clientY,
+    time: Date.now(),
+  };
+}
+
+function handlePreviewTouchEnd(event) {
+  if (!previewTouchStart || event.changedTouches.length === 0) {
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const deltaX = touch.clientX - previewTouchStart.x;
+  const deltaY = touch.clientY - previewTouchStart.y;
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+  const elapsed = Date.now() - previewTouchStart.time;
+  previewTouchStart = null;
+
+  if (elapsed > 900) {
+    return;
+  }
+
+  if (absX > 58 && absX > absY * 1.15) {
+    navigatePreview(deltaX < 0 ? 1 : -1);
+    return;
+  }
+
+  if (deltaY > 96 && absX < 84) {
+    previewDialog.close();
+  }
 }
 
 function setStatus(message) {
@@ -660,6 +822,8 @@ async function runSearch(tags) {
   setCount(0);
   setProgress(0);
   renderCurrentTags(tags, options.maxRemoteTags);
+  currentPosts = [];
+  activePreviewIndex = -1;
   gallery.replaceChildren();
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "正在搜索...";
@@ -743,6 +907,8 @@ clearButton.addEventListener("click", () => {
 
   selectedTags = [];
   tagInput.value = "";
+  currentPosts = [];
+  activePreviewIndex = -1;
   gallery.replaceChildren();
   hideNotice();
   setCount(0);
@@ -789,16 +955,58 @@ document.querySelectorAll(".view-button").forEach((button) => {
       item.classList.toggle("is-active", item === button);
     });
     gallery.classList.toggle("is-list", button.getAttribute("aria-label") === "列表视图");
+    renderGallery();
   });
 });
+
+prevPostButton.addEventListener("click", () => {
+  navigatePreview(-1);
+});
+
+nextPostButton.addEventListener("click", () => {
+  navigatePreview(1);
+});
+
+metaToggleButton.addEventListener("click", () => {
+  const isOpen = !previewDialog.classList.contains("is-meta-open");
+  previewDialog.classList.toggle("is-meta-open", isOpen);
+  metaToggleButton.setAttribute("aria-expanded", String(isOpen));
+});
+
+dialogMedia.addEventListener("touchstart", handlePreviewTouchStart, { passive: true });
+dialogMedia.addEventListener("touchend", handlePreviewTouchEnd, { passive: true });
 
 closeDialogButton.addEventListener("click", () => {
   previewDialog.close();
 });
 
+previewDialog.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigatePreview(-1);
+  }
+
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigatePreview(1);
+  }
+});
+
 previewDialog.addEventListener("close", () => {
   dialogImage.removeAttribute("src");
+  previewDialog.classList.remove("is-meta-open");
+  metaToggleButton.setAttribute("aria-expanded", "false");
+
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: previewScrollY, left: 0, behavior: "auto" });
+  });
 });
+
+if (typeof mobileGalleryQuery.addEventListener === "function") {
+  mobileGalleryQuery.addEventListener("change", renderGallery);
+} else {
+  mobileGalleryQuery.addListener(renderGallery);
+}
 
 renderHistory();
 renderSelectedTags();

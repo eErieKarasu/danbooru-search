@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Danbooru 多标签预览</title>
+    <meta
+      name="description"
+      content="匿名搜索 Danbooru posts，支持多 tag 输入、本地过滤和图片预览。"
+    >
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="pageTitle">
+        <div class="intro">
+          <p class="eyebrow">Danbooru Anonymous Search</p>
+          <h1 id="pageTitle">多标签图片预览</h1>
+          <p class="intro-text">
+            输入 tag 后直接从 Danbooru API 拉取结果。前两个 tag 用于远程搜索，其余 tag 在浏览器本地过滤。
+          </p>
+        </div>
+
+        <form class="search-panel" id="searchForm">
+          <div class="field-block">
+            <label for="tagInput">Tags</label>
+            <textarea
+              id="tagInput"
+              name="tags"
+              rows="4"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder='blue_archive 1girl white_hair long_hair'
+            ></textarea>
+          </div>
+
+          <div class="controls">
+            <label class="control">
+              <span>页数</span>
+              <input id="pagesInput" type="number" min="1" max="20" value="3">
+            </label>
+
+            <label class="control">
+              <span>每页</span>
+              <select id="limitInput">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+              </select>
+            </label>
+
+            <label class="control">
+              <span>远程 tag</span>
+              <select id="remoteTagInput">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+              </select>
+            </label>
+
+            <label class="control">
+              <span>评级</span>
+              <select id="ratingInput">
+                <option value="s" selected>Safe</option>
+                <option value="g">General</option>
+                <option value="q">Questionable</option>
+                <option value="e">Explicit</option>
+                <option value="any">All</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="quick-tags" aria-label="示例 tag">
+            <button type="button" data-tags="blue_archive 1girl white_hair long_hair">Blue Archive</button>
+            <button type="button" data-tags="landscape scenery sky">Landscape</button>
+            <button type="button" data-tags="original 1girl solo">Original</button>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button" id="searchButton" type="submit">搜索</button>
+            <button class="ghost-button" id="cancelButton" type="button" hidden>停止</button>
+            <button class="ghost-button" id="clearButton" type="button">清空</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="status-bar" aria-live="polite">
+        <div>
+          <p class="status-label">状态</p>
+          <p class="status-text" id="statusText">等待输入 tag</p>
+        </div>
+        <div class="result-count" id="resultCount">0 posts</div>
+      </section>
+
+      <section class="notice" id="noticeBox" hidden></section>
+
+      <section class="empty-state" id="emptyState">
+        <p>输入 tag 后，图片会显示在这里。</p>
+      </section>
+
+      <section class="gallery" id="gallery" aria-label="搜索结果"></section>
+    </main>
+
+    <dialog class="preview-dialog" id="previewDialog">
+      <div class="dialog-toolbar">
+        <div>
+          <p class="status-label">预览</p>
+          <h2 id="dialogTitle">Post</h2>
+        </div>
+        <button class="icon-button" id="closeDialogButton" type="button" aria-label="关闭预览">×</button>
+      </div>
+      <div class="dialog-media">
+        <img id="dialogImage" alt="">
+      </div>
+      <div class="dialog-meta">
+        <p id="dialogTags"></p>
+        <div class="dialog-links">
+          <a id="dialogPostLink" target="_blank" rel="noopener noreferrer">打开 Danbooru</a>
+          <a id="dialogFileLink" target="_blank" rel="noopener noreferrer">打开图片</a>
+        </div>
+      </div>
+    </dialog>
+
+    <template id="postTemplate">
+      <article class="post-card">
+        <button class="image-button" type="button">
+          <img loading="lazy" decoding="async" alt="">
+        </button>
+        <div class="post-body">
+          <div class="post-meta-row">
+            <span class="rating-badge"></span>
+            <span class="score-label"></span>
+          </div>
+          <p class="post-tags"></p>
+          <a class="post-link" target="_blank" rel="noopener noreferrer">Danbooru</a>
+        </div>
+      </article>
+    </template>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

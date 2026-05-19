@@ -35,10 +35,7 @@ const historyList = document.querySelector("#historyList");
 const previewDialog = document.querySelector("#previewDialog");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
-const dialogMedia = document.querySelector("#dialogMedia");
 const dialogImage = document.querySelector("#dialogImage");
-const prevPostButton = document.querySelector("#prevPostButton");
-const nextPostButton = document.querySelector("#nextPostButton");
 const metaToggleButton = document.querySelector("#metaToggleButton");
 const dialogTags = document.querySelector("#dialogTags");
 const dialogRating = document.querySelector("#dialogRating");
@@ -57,7 +54,6 @@ let localPageIndex = 0;
 let currentDisplayOptions = { pages: 3, limit: 50 };
 let activePreviewIndex = -1;
 let previewScrollY = 0;
-let previewTouchStart = null;
 
 const RATING_LABELS = {
   g: "GENERAL",
@@ -322,10 +318,11 @@ function getPreviewUrl(post) {
 
 function getLargeUrl(post) {
   return (
+    post.file_url ||
+    getVariant(post, "original") ||
+    post.large_file_url ||
     getVariant(post, "sample") ||
     getVariant(post, "720x720") ||
-    post.large_file_url ||
-    post.file_url ||
     getPreviewUrl(post)
   );
 }
@@ -630,7 +627,7 @@ function updatePreview(post, index) {
   const largeUrl = getLargeUrl(post);
 
   setSelectedPost(index);
-  dialogTitle.textContent = `Post #${post.id} · ${index + 1}/${currentPosts.length}`;
+  dialogTitle.textContent = `Post #${post.id}`;
   dialogImage.src = largeUrl;
   dialogImage.alt = `Danbooru post ${post.id}`;
   dialogTags.textContent = getTagSummary(post) || post.tag_string || "";
@@ -640,8 +637,6 @@ function updatePreview(post, index) {
   dialogSize.textContent = formatBytes(post.file_size || post.media_asset?.file_size);
   dialogPostLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
   dialogFileLink.href = largeUrl;
-  prevPostButton.hidden = currentPosts.length < 2;
-  nextPostButton.hidden = currentPosts.length < 2;
 }
 
 function openPreview(index) {
@@ -659,63 +654,6 @@ function openPreview(index) {
 
   if (!previewDialog.open) {
     previewDialog.showModal();
-  }
-}
-
-function navigatePreview(direction) {
-  if (currentPosts.length < 2 || activePreviewIndex < 0) {
-    return;
-  }
-
-  const nextIndex = (activePreviewIndex + direction + currentPosts.length) % currentPosts.length;
-  const nextPost = currentPosts[nextIndex];
-
-  if (!nextPost) {
-    return;
-  }
-
-  activePreviewIndex = nextIndex;
-  updatePreview(nextPost, nextIndex);
-}
-
-function handlePreviewTouchStart(event) {
-  if (event.touches.length !== 1) {
-    previewTouchStart = null;
-    return;
-  }
-
-  const touch = event.touches[0];
-  previewTouchStart = {
-    x: touch.clientX,
-    y: touch.clientY,
-    time: Date.now(),
-  };
-}
-
-function handlePreviewTouchEnd(event) {
-  if (!previewTouchStart || event.changedTouches.length === 0) {
-    return;
-  }
-
-  const touch = event.changedTouches[0];
-  const deltaX = touch.clientX - previewTouchStart.x;
-  const deltaY = touch.clientY - previewTouchStart.y;
-  const absX = Math.abs(deltaX);
-  const absY = Math.abs(deltaY);
-  const elapsed = Date.now() - previewTouchStart.time;
-  previewTouchStart = null;
-
-  if (elapsed > 900) {
-    return;
-  }
-
-  if (absX > 58 && absX > absY * 1.15) {
-    navigatePreview(deltaX < 0 ? 1 : -1);
-    return;
-  }
-
-  if (deltaY > 96 && absX < 84) {
-    previewDialog.close();
   }
 }
 
@@ -955,37 +893,18 @@ document.querySelectorAll(".view-button").forEach((button) => {
   });
 });
 
-prevPostButton.addEventListener("click", () => {
-  navigatePreview(-1);
-});
-
-nextPostButton.addEventListener("click", () => {
-  navigatePreview(1);
-});
-
 metaToggleButton.addEventListener("click", () => {
   const isOpen = !previewDialog.classList.contains("is-meta-open");
   previewDialog.classList.toggle("is-meta-open", isOpen);
   metaToggleButton.setAttribute("aria-expanded", String(isOpen));
 });
 
-dialogMedia.addEventListener("touchstart", handlePreviewTouchStart, { passive: true });
-dialogMedia.addEventListener("touchend", handlePreviewTouchEnd, { passive: true });
-
-closeDialogButton.addEventListener("click", () => {
+dialogImage.addEventListener("click", () => {
   previewDialog.close();
 });
 
-previewDialog.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowLeft") {
-    event.preventDefault();
-    navigatePreview(-1);
-  }
-
-  if (event.key === "ArrowRight") {
-    event.preventDefault();
-    navigatePreview(1);
-  }
+closeDialogButton.addEventListener("click", () => {
+  previewDialog.close();
 });
 
 previewDialog.addEventListener("close", () => {

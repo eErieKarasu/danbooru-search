@@ -4,30 +4,34 @@ const REQUEST_SLEEP_MS = 700;
 const MAX_RETRIES = 3;
 const HISTORY_KEY = "danbooru-search-history";
 const MAX_HISTORY_ITEMS = 9;
-const POPULAR_TAG_LIMIT = 12;
-const POPULAR_TAG_REQUEST_LIMIT = 36;
+const DEFAULT_MAX_REMOTE_TAGS = 2;
+const DEFAULT_RATING = "any";
+const REMOTE_FETCH_LIMIT = 100;
+const MAX_REMOTE_FETCH_PAGES = 20;
 
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
 const selectedTagsBox = document.querySelector("#selectedTags");
 const pagesInput = document.querySelector("#pagesInput");
 const limitInput = document.querySelector("#limitInput");
-const remoteTagInput = document.querySelector("#remoteTagInput");
-const ratingInput = document.querySelector("#ratingInput");
 const searchButton = document.querySelector("#searchButton");
 const cancelButton = document.querySelector("#cancelButton");
 const clearButton = document.querySelector("#clearButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
+const historyToggleButton = document.querySelector("#historyToggleButton");
 const currentTags = document.querySelector("#currentTags");
 const progressBar = document.querySelector("#progressBar");
 const statusText = document.querySelector("#statusText");
 const resultCount = document.querySelector("#resultCount");
+const paginationControls = Array.from(document.querySelectorAll("[data-pagination]"));
+const prevPageButtons = Array.from(document.querySelectorAll("[data-page-prev]"));
+const nextPageButtons = Array.from(document.querySelectorAll("[data-page-next]"));
+const pageIndicators = Array.from(document.querySelectorAll("[data-page-indicator]"));
 const noticeBox = document.querySelector("#noticeBox");
 const emptyState = document.querySelector("#emptyState");
 const gallery = document.querySelector("#gallery");
 const postTemplate = document.querySelector("#postTemplate");
 const historyList = document.querySelector("#historyList");
-const popularTags = document.querySelector("#popularTags");
 const previewDialog = document.querySelector("#previewDialog");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
@@ -47,7 +51,10 @@ const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 
 let activeController = null;
 let selectedTags = [];
+let allPosts = [];
 let currentPosts = [];
+let localPageIndex = 0;
+let currentDisplayOptions = { pages: 3, limit: 50 };
 let activePreviewIndex = -1;
 let previewScrollY = 0;
 let previewTouchStart = null;
@@ -59,40 +66,6 @@ const RATING_LABELS = {
   e: "EXPLICIT",
   any: "ALL",
 };
-
-const FALLBACK_POPULAR_TAGS = [
-  { name: "1girl" },
-  { name: "solo" },
-  { name: "long_hair" },
-  { name: "looking_at_viewer" },
-  { name: "smile" },
-  { name: "blue_archive" },
-  { name: "white_hair" },
-  { name: "original" },
-  { name: "school_uniform" },
-  { name: "landscape" },
-  { name: "cat" },
-  { name: "flower" },
-];
-
-const POPULAR_TAG_BLOCKLIST = new Set([
-  "ass",
-  "areolae",
-  "breasts",
-  "cleavage",
-  "cum",
-  "large_breasts",
-  "medium_breasts",
-  "naked",
-  "nipples",
-  "nude",
-  "panties",
-  "penis",
-  "pussy",
-  "sex",
-  "small_breasts",
-  "underwear",
-]);
 
 function normalizeTag(tag) {
   return String(tag).trim().replace(/\s+/g, "_");
@@ -164,24 +137,6 @@ function formatBytes(bytes) {
 
 function formatCount(count) {
   return `${count.toLocaleString("zh-CN")} 张图片`;
-}
-
-function formatPostCount(count) {
-  const value = Number(count);
-
-  if (!Number.isFinite(value) || value <= 0) {
-    return "";
-  }
-
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
-  }
-
-  if (value >= 1000) {
-    return `${Math.round(value / 1000)}K`;
-  }
-
-  return String(value);
 }
 
 function getPostSize(post) {
@@ -306,15 +261,16 @@ async function searchPosts(tags, options, signal) {
   const remoteQuery = remoteTags.join(" ");
   const posts = [];
 
-  for (let page = 1; page <= options.pages; page += 1) {
+  for (let page = 1; page <= MAX_REMOTE_FETCH_PAGES; page += 1) {
+    const collectedCount = Math.min(deduplicatePosts(posts).length, options.maxDisplayPosts);
     const params = new URLSearchParams({
       tags: remoteQuery,
-      limit: String(options.limit),
+      limit: String(REMOTE_FETCH_LIMIT),
       page: String(page),
     });
 
-    setStatus(`请求第 ${page}/${options.pages} 页：${remoteQuery}`);
-    setProgress(((page - 1) / options.pages) * 100);
+    setStatus(`请求远程第 ${page} 页：${remoteQuery}；已收集 ${collectedCount}/${options.maxDisplayPosts} 张`);
+    setProgress(Math.min((collectedCount / options.maxDisplayPosts) * 88, 88));
 
     const pagePosts = await fetchJsonWithRetry(
       `${DANBOORU_BASE_URL}/posts.json?${params.toString()}`,
@@ -329,19 +285,25 @@ async function searchPosts(tags, options, signal) {
       .filter((post) => matchesPost(post, localTags, options.rating))
       .forEach((post) => posts.push(post));
 
-    setCount(deduplicatePosts(posts).length);
-    setProgress((page / options.pages) * 100);
+    const uniquePosts = deduplicatePosts(posts);
+    const nextCount = Math.min(uniquePosts.length, options.maxDisplayPosts);
+    setCount(nextCount);
+    setProgress(Math.min((nextCount / options.maxDisplayPosts) * 92, 92));
 
-    if (pagePosts.length < options.limit) {
+    if (uniquePosts.length >= options.maxDisplayPosts) {
+      return uniquePosts.slice(0, options.maxDisplayPosts);
+    }
+
+    if (pagePosts.length < REMOTE_FETCH_LIMIT) {
       break;
     }
 
-    if (page < options.pages) {
+    if (page < MAX_REMOTE_FETCH_PAGES) {
       await sleep(REQUEST_SLEEP_MS);
     }
   }
 
-  return deduplicatePosts(posts);
+  return deduplicatePosts(posts).slice(0, options.maxDisplayPosts);
 }
 
 function getVariant(post, preferredType) {
@@ -442,61 +404,11 @@ function renderHistory() {
   });
 }
 
-function renderPopularTags(tags, sourceLabel = "") {
-  popularTags.replaceChildren();
-
-  tags
-    .filter((tag) => !POPULAR_TAG_BLOCKLIST.has(normalizeTag(tag.name)))
-    .slice(0, POPULAR_TAG_LIMIT)
-    .forEach((tag) => {
-      const name = normalizeTag(tag.name);
-
-      if (!name) {
-        return;
-      }
-
-      const button = document.createElement("button");
-      const countLabel = formatPostCount(tag.post_count);
-      button.type = "button";
-      button.dataset.tags = name;
-      button.title = countLabel ? `${name} · ${countLabel} posts${sourceLabel}` : name;
-
-      const label = document.createElement("span");
-      label.className = "popular-name";
-      label.textContent = name;
-      button.append(label);
-
-      if (countLabel) {
-        const count = document.createElement("span");
-        count.className = "popular-count";
-        count.textContent = countLabel;
-        button.append(count);
-      }
-
-      popularTags.append(button);
-    });
-}
-
-async function loadPopularTags() {
-  const params = new URLSearchParams({
-    limit: String(POPULAR_TAG_REQUEST_LIMIT),
-    "search[category]": "0",
-    "search[hide_empty]": "yes",
-    "search[is_deprecated]": "no",
-    "search[order]": "count",
-  });
-
-  try {
-    const tags = await fetchJsonWithRetry(`${DANBOORU_BASE_URL}/tags.json?${params.toString()}`);
-
-    if (!Array.isArray(tags) || tags.length === 0) {
-      throw new Error("Danbooru 没有返回 tag 数据");
-    }
-
-    renderPopularTags(tags, " · Danbooru");
-  } catch {
-    renderPopularTags(FALLBACK_POPULAR_TAGS, " · fallback");
-  }
+function setHistoryCollapsed(isCollapsed) {
+  historyList.hidden = isCollapsed;
+  historyToggleButton.classList.toggle("is-collapsed", isCollapsed);
+  historyToggleButton.setAttribute("aria-expanded", String(!isCollapsed));
+  historyToggleButton.setAttribute("aria-label", isCollapsed ? "展开历史 Tag" : "收起历史 Tag");
 }
 
 function renderSelectedTags() {
@@ -625,8 +537,63 @@ function renderGallery() {
   }
 }
 
-function renderPosts(posts) {
-  currentPosts = posts;
+function getTotalLocalPages() {
+  if (allPosts.length === 0) {
+    return 1;
+  }
+
+  return Math.min(
+    currentDisplayOptions.pages,
+    Math.max(1, Math.ceil(allPosts.length / currentDisplayOptions.limit))
+  );
+}
+
+function updatePagination() {
+  const total = allPosts.length;
+  const totalPages = getTotalLocalPages();
+
+  paginationControls.forEach((control) => {
+    control.hidden = total === 0 || totalPages <= 1;
+  });
+  pageIndicators.forEach((indicator) => {
+    indicator.textContent = `${localPageIndex + 1}/${totalPages}`;
+  });
+  prevPageButtons.forEach((button) => {
+    button.disabled = localPageIndex <= 0;
+  });
+  nextPageButtons.forEach((button) => {
+    button.disabled = localPageIndex >= totalPages - 1;
+  });
+
+  if (total === 0) {
+    setCount(0);
+    return;
+  }
+
+  const start = localPageIndex * currentDisplayOptions.limit + 1;
+  const end = Math.min(total, (localPageIndex + 1) * currentDisplayOptions.limit);
+  resultCount.textContent = `${start}-${end} / ${formatCount(total)}`;
+}
+
+function renderCurrentPage() {
+  const totalPages = getTotalLocalPages();
+  localPageIndex = Math.min(Math.max(localPageIndex, 0), totalPages - 1);
+
+  const start = localPageIndex * currentDisplayOptions.limit;
+  currentPosts = allPosts.slice(start, start + currentDisplayOptions.limit);
+  activePreviewIndex = -1;
+  renderGallery();
+  updatePagination();
+}
+
+function renderPosts(posts, options) {
+  allPosts = posts;
+  currentDisplayOptions = {
+    pages: options.pages,
+    limit: options.limit,
+  };
+  localPageIndex = 0;
+  currentPosts = [];
   activePreviewIndex = -1;
   emptyState.hidden = posts.length > 0;
 
@@ -634,10 +601,17 @@ function renderPosts(posts) {
     emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
     emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
     renderGallery();
+    updatePagination();
     return;
   }
 
-  renderGallery();
+  renderCurrentPage();
+}
+
+function goToLocalPage(index) {
+  localPageIndex = index;
+  renderCurrentPage();
+  gallery.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function setSelectedPost(index) {
@@ -794,11 +768,15 @@ function setLoading(isLoading) {
 }
 
 function getOptions() {
+  const pages = Math.min(Math.max(Number(pagesInput.value) || 1, 1), 20);
+  const limit = Math.min(Math.max(Number(limitInput.value) || 50, 1), 100);
+
   return {
-    pages: Math.min(Math.max(Number(pagesInput.value) || 1, 1), 20),
-    limit: Math.min(Math.max(Number(limitInput.value) || 100, 1), 100),
-    maxRemoteTags: Math.min(Math.max(Number(remoteTagInput.value) || 2, 1), 2),
-    rating: ratingInput.value,
+    pages,
+    limit,
+    maxDisplayPosts: pages * limit,
+    maxRemoteTags: DEFAULT_MAX_REMOTE_TAGS,
+    rating: DEFAULT_RATING,
   };
 }
 
@@ -822,19 +800,25 @@ async function runSearch(tags) {
   setCount(0);
   setProgress(0);
   renderCurrentTags(tags, options.maxRemoteTags);
+  allPosts = [];
   currentPosts = [];
   activePreviewIndex = -1;
   gallery.replaceChildren();
+  updatePagination();
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "正在搜索...";
-  emptyState.querySelector("span").textContent = `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"}`;
-  setStatus(`远程 tag：${remoteTags.join(" ")}；本地过滤：${localTags.join(" ") || "无"}`);
+  emptyState.querySelector("span").textContent =
+    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 本地最多 ${options.pages} 页，每页 ${options.limit} 张`;
+  setStatus(
+    `远程 tag：${remoteTags.join(" ")}；本地过滤：${localTags.join(" ") || "无"}；评级：All`
+  );
 
   try {
     const posts = await searchPosts(tags, options, activeController.signal);
-    renderPosts(posts);
-    setStatus(`约 ${posts.length.toLocaleString("zh-CN")} 张图片`);
-    setCount(posts.length);
+    renderPosts(posts, options);
+    setStatus(
+      `${posts.length.toLocaleString("zh-CN")} 张图片，本地 ${getTotalLocalPages()} 页显示`
+    );
     setProgress(100);
     saveHistory(tags);
   } catch (error) {
@@ -907,18 +891,21 @@ clearButton.addEventListener("click", () => {
 
   selectedTags = [];
   tagInput.value = "";
+  allPosts = [];
   currentPosts = [];
+  localPageIndex = 0;
   activePreviewIndex = -1;
   gallery.replaceChildren();
   hideNotice();
   setCount(0);
   setProgress(0);
+  updatePagination();
   renderSelectedTags();
   renderCurrentTags();
   setStatus("等待输入 tag");
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
-  emptyState.querySelector("span").textContent = "默认使用 Safe 评级和本地过滤。";
+  emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
   tagInput.focus();
 });
 
@@ -927,15 +914,8 @@ clearHistoryButton.addEventListener("click", () => {
   renderHistory();
 });
 
-popularTags.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-tags]");
-
-  if (!button) {
-    return;
-  }
-
-  addTags(parseTags(button.dataset.tags || ""));
-  tagInput.focus();
+historyToggleButton.addEventListener("click", () => {
+  setHistoryCollapsed(!historyList.hidden);
 });
 
 historyList.addEventListener("click", (event) => {
@@ -946,7 +926,23 @@ historyList.addEventListener("click", (event) => {
   }
 
   setTags(parseTags(item.dataset.tags || ""));
-  runSearch(selectedTags);
+  tagInput.focus();
+});
+
+prevPageButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (localPageIndex > 0) {
+      goToLocalPage(localPageIndex - 1);
+    }
+  });
+});
+
+nextPageButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (localPageIndex < getTotalLocalPages() - 1) {
+      goToLocalPage(localPageIndex + 1);
+    }
+  });
 });
 
 document.querySelectorAll(".view-button").forEach((button) => {
@@ -1009,6 +1005,7 @@ if (typeof mobileGalleryQuery.addEventListener === "function") {
 }
 
 renderHistory();
+setHistoryCollapsed(false);
 renderSelectedTags();
 renderCurrentTags();
-loadPopularTags();
+updatePagination();

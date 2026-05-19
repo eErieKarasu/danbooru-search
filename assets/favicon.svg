@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="danbooru-search icon">
+  <defs>
+    <linearGradient id="bg" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6f63ff"/>
+      <stop offset="1" stop-color="#4132d4"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="16" y1="14" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#d8f0ff" stop-opacity=".9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <path d="M17 45 29 26l9 12 5-7 8 14H17Z" fill="url(#shine)"/>
+  <circle cx="46" cy="18" r="5" fill="#c9e7ff"/>
+  <circle cx="45" cy="45" r="9" fill="none" stroke="#fff" stroke-width="5"/>
+  <path d="m51.5 51.5 5.5 5.5" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+</svg>

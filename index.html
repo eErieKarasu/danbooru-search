@@ -8,7 +8,8 @@
       name="description"
       content="匿名搜索 Danbooru posts，支持多 tag 输入、本地过滤和图片预览。"
     >
-    <link rel="stylesheet" href="css/styles.css?v=20260518-mobile-gallery">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="stylesheet" href="css/styles.css?v=20260519-local-pages">
   </head>
   <body>
     <main class="app-shell">
@@ -53,25 +54,6 @@
                   <option value="100">100</option>
                 </select>
               </label>
-
-              <label class="control">
-                <span>远程 tag</span>
-                <select id="remoteTagInput">
-                  <option value="1">1</option>
-                  <option value="2" selected>2</option>
-                </select>
-              </label>
-
-              <label class="control">
-                <span>评级</span>
-                <select id="ratingInput">
-                  <option value="s" selected>Safe</option>
-                  <option value="g">General</option>
-                  <option value="q">Questionable</option>
-                  <option value="e">Explicit</option>
-                  <option value="any">All</option>
-                </select>
-              </label>
             </div>
             <div class="compact-actions">
               <button class="ghost-button danger-button" id="cancelButton" type="button" hidden>
@@ -83,17 +65,22 @@
 
           <section class="history-section" aria-labelledby="historyTitle">
             <div class="section-heading">
-              <h2 id="historyTitle">历史 Tag</h2>
+              <div class="heading-title">
+                <button
+                  class="collapse-button"
+                  id="historyToggleButton"
+                  type="button"
+                  aria-label="收起历史 Tag"
+                  aria-controls="historyList"
+                  aria-expanded="true"
+                >
+                  <span aria-hidden="true"></span>
+                </button>
+                <h2 id="historyTitle">历史 Tag</h2>
+              </div>
               <button class="text-button" id="clearHistoryButton" type="button">清空</button>
             </div>
             <div class="history-list" id="historyList"></div>
-          </section>
-
-          <section class="popular-section" aria-labelledby="popularTitle">
-            <h2 id="popularTitle">热门 Tag</h2>
-            <div class="popular-tags" id="popularTags" aria-live="polite">
-              <p class="empty-list">正在从 Danbooru 获取...</p>
-            </div>
           </section>
         </div>
       </form>
@@ -118,7 +105,14 @@
           <div class="active-tags" id="currentTags">
             <span class="tag-chip is-muted">等待输入</span>
           </div>
-          <div class="result-count" id="resultCount">0 张图片</div>
+          <div class="result-side">
+            <div class="result-count" id="resultCount">0 张图片</div>
+            <nav class="pagination-controls" aria-label="顶部本地分页" data-pagination hidden>
+              <button class="page-button" type="button" aria-label="上一页" data-page-prev>‹</button>
+              <span data-page-indicator>1/1</span>
+              <button class="page-button" type="button" aria-label="下一页" data-page-next>›</button>
+            </nav>
+          </div>
         </section>
 
         <div class="progress-track" aria-hidden="true">
@@ -130,11 +124,18 @@
         <section class="empty-state" id="emptyState">
           <div>
             <p>输入 tag 后，图片会显示在这里。</p>
-            <span>默认使用 Safe 评级和本地过滤。</span>
+            <span>默认使用 All 评级和本地过滤。</span>
           </div>
         </section>
 
         <section class="gallery" id="gallery" aria-label="搜索结果"></section>
+        <div class="gallery-footer">
+          <nav class="pagination-controls pagination-controls-bottom" aria-label="底部本地分页" data-pagination hidden>
+            <button class="page-button" type="button" aria-label="上一页" data-page-prev>‹</button>
+            <span data-page-indicator>1/1</span>
+            <button class="page-button" type="button" aria-label="下一页" data-page-next>›</button>
+          </nav>
+        </div>
       </section>
     </main>
 
@@ -216,6 +217,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260518-mobile-gallery"></script>
+    <script src="js/app.js?v=20260519-local-pages"></script>
   </body>
 </html>

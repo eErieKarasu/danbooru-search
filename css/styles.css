@@ -148,14 +148,12 @@ p {
 
 .search-section,
 .history-section,
-.popular-section,
 .advanced-options {
   margin-bottom: 30px;
 }
 
 .search-section h2,
-.history-section h2,
-.popular-section h2 {
+.history-section h2 {
   margin-bottom: 12px;
   color: #171827;
   font-size: 0.98rem;
@@ -430,14 +428,53 @@ p {
 
 .section-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
 }
 
+.heading-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
 .section-heading h2 {
   margin-bottom: 0;
+}
+
+.collapse-button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.collapse-button:hover {
+  background: var(--surface-soft);
+  color: var(--accent-strong);
+}
+
+.collapse-button span {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 160ms ease;
+}
+
+.collapse-button.is-collapsed span {
+  transform: rotate(-45deg);
 }
 
 .text-button {
@@ -524,61 +561,13 @@ p {
 }
 
 .history-return::before {
-  content: "↻";
+  content: "↵";
 }
 
 .history-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.popular-tags {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.popular-tags button {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-  color: #3a3d50;
-  font-size: 0.82rem;
-  font-weight: 750;
-  transition:
-    border-color 160ms ease,
-    color 160ms ease,
-    background 160ms ease,
-    transform 140ms ease;
-}
-
-.popular-tags button:hover {
-  border-color: rgba(91, 77, 242, 0.28);
-  background: var(--surface-soft);
-  color: var(--accent-strong);
-  transform: translateY(-1px);
-}
-
-.popular-tags .empty-list {
-  grid-column: 1 / -1;
-}
-
-.popular-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.popular-count {
-  color: var(--subtle);
-  font-size: 0.72rem;
-  font-weight: 850;
 }
 
 .results-shell {
@@ -693,6 +682,68 @@ p {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.result-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.pagination-controls span {
+  min-width: 34px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gallery-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.pagination-controls-bottom {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 8px 10px;
+  box-shadow: 0 10px 24px rgba(39, 43, 70, 0.07);
+}
+
+.page-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--accent-strong);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.page-button:hover:not(:disabled) {
+  border-color: rgba(91, 77, 242, 0.3);
+  background: var(--surface-soft);
+}
+
+.page-button:disabled {
+  cursor: not-allowed;
+  color: var(--subtle);
+  opacity: 0.55;
 }
 
 .progress-track {
@@ -1176,6 +1227,10 @@ p {
     display: grid;
   }
 
+  .result-side {
+    justify-content: space-between;
+  }
+
   .gallery {
     grid-auto-rows: 78px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1394,7 +1449,6 @@ p {
     justify-self: start;
   }
 
-  .popular-tags,
   .controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

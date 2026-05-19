@@ -36,10 +36,9 @@ const previewDialog = document.querySelector("#previewDialog");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
 const dialogImage = document.querySelector("#dialogImage");
-const metaToggleButton = document.querySelector("#metaToggleButton");
+const dialogRatingBadge = document.querySelector("#dialogRatingBadge");
+const dialogScorePill = document.querySelector("#dialogScorePill");
 const dialogTags = document.querySelector("#dialogTags");
-const dialogRating = document.querySelector("#dialogRating");
-const dialogScore = document.querySelector("#dialogScore");
 const dialogDimensions = document.querySelector("#dialogDimensions");
 const dialogSize = document.querySelector("#dialogSize");
 const dialogPostLink = document.querySelector("#dialogPostLink");
@@ -163,7 +162,7 @@ function getDimensions(post) {
     return "-";
   }
 
-  return `${size.width}x${size.height}`;
+  return `${size.width} × ${size.height}`;
 }
 
 function collectAllTags(post) {
@@ -342,6 +341,63 @@ function getTagSummary(post) {
     .filter(Boolean)
     .slice(0, 16)
     .join(" ");
+}
+
+function getPreviewTags(post) {
+  const priorityFields = [
+    "tag_string_general",
+    "tag_string_artist",
+    "tag_string_character",
+    "tag_string_copyright",
+    "tag_string_meta",
+    "tag_string",
+  ];
+  const tags = [];
+  const seen = new Set();
+
+  priorityFields.forEach((field) => {
+    String(post[field] || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((tag) => {
+        if (!seen.has(tag)) {
+          seen.add(tag);
+          tags.push(tag);
+        }
+      });
+  });
+
+  return tags;
+}
+
+function renderDialogTags(post) {
+  const previewTags = getPreviewTags(post);
+  const visibleTags = previewTags.slice(0, 14);
+  const hiddenCount = Math.max(previewTags.length - visibleTags.length, 0);
+  const fragment = document.createDocumentFragment();
+
+  visibleTags.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "dialog-tag-chip";
+    chip.textContent = tag;
+    fragment.append(chip);
+  });
+
+  if (hiddenCount > 0) {
+    const moreChip = document.createElement("span");
+    moreChip.className = "dialog-tag-chip dialog-tag-more";
+    moreChip.textContent = `+ ${hiddenCount} 更多`;
+    fragment.append(moreChip);
+  }
+
+  if (previewTags.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "dialog-tag-chip is-muted";
+    empty.textContent = "无标签";
+    fragment.append(empty);
+  }
+
+  dialogTags.replaceChildren(fragment);
 }
 
 function readHistory() {
@@ -630,9 +686,10 @@ function updatePreview(post, index) {
   dialogTitle.textContent = `Post #${post.id}`;
   dialogImage.src = largeUrl;
   dialogImage.alt = `Danbooru post ${post.id}`;
-  dialogTags.textContent = getTagSummary(post) || post.tag_string || "";
-  dialogRating.textContent = formatRating(post.rating);
-  dialogScore.textContent = String(post.score ?? 0);
+  dialogRatingBadge.className = `dialog-rating-pill rating-${post.rating || "unknown"}`;
+  dialogRatingBadge.textContent = formatRating(post.rating);
+  dialogScorePill.textContent = `${post.score ?? 0} 分`;
+  renderDialogTags(post);
   dialogDimensions.textContent = getDimensions(post);
   dialogSize.textContent = formatBytes(post.file_size || post.media_asset?.file_size);
   dialogPostLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
@@ -648,12 +705,11 @@ function openPreview(index) {
 
   previewScrollY = window.scrollY;
   activePreviewIndex = index;
-  previewDialog.classList.remove("is-meta-open");
-  metaToggleButton.setAttribute("aria-expanded", "false");
   updatePreview(post, index);
 
   if (!previewDialog.open) {
     previewDialog.showModal();
+    previewDialog.focus({ preventScroll: true });
   }
 }
 
@@ -893,12 +949,6 @@ document.querySelectorAll(".view-button").forEach((button) => {
   });
 });
 
-metaToggleButton.addEventListener("click", () => {
-  const isOpen = !previewDialog.classList.contains("is-meta-open");
-  previewDialog.classList.toggle("is-meta-open", isOpen);
-  metaToggleButton.setAttribute("aria-expanded", String(isOpen));
-});
-
 dialogImage.addEventListener("click", () => {
   previewDialog.close();
 });
@@ -909,8 +959,6 @@ closeDialogButton.addEventListener("click", () => {
 
 previewDialog.addEventListener("close", () => {
   dialogImage.removeAttribute("src");
-  previewDialog.classList.remove("is-meta-open");
-  metaToggleButton.setAttribute("aria-expanded", "false");
 
   window.requestAnimationFrame(() => {
     window.scrollTo({ top: previewScrollY, left: 0, behavior: "auto" });

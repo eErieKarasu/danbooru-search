@@ -251,13 +251,15 @@ async function fetchJsonWithRetry(url, signal) {
   throw lastError || new Error("请求失败");
 }
 
-async function searchPosts(tags, options, signal) {
+async function searchPosts(tags, options, signal, onProgress = () => {}) {
   const { remoteTags, localTags } = splitRemoteAndLocalTags(tags, options.maxRemoteTags);
   const remoteQuery = remoteTags.join(" ");
   const posts = [];
+  let uniquePosts = [];
 
   for (let page = 1; page <= MAX_REMOTE_FETCH_PAGES; page += 1) {
-    const collectedCount = Math.min(deduplicatePosts(posts).length, options.maxDisplayPosts);
+    const collectedCount = Math.min(uniquePosts.length, options.maxDisplayPosts);
+    const previousCount = uniquePosts.length;
     const params = new URLSearchParams({
       tags: remoteQuery,
       limit: String(REMOTE_FETCH_LIMIT),
@@ -280,13 +282,16 @@ async function searchPosts(tags, options, signal) {
       .filter((post) => matchesPost(post, localTags, options.rating))
       .forEach((post) => posts.push(post));
 
-    const uniquePosts = deduplicatePosts(posts);
-    const nextCount = Math.min(uniquePosts.length, options.maxDisplayPosts);
+    uniquePosts = deduplicatePosts(posts).slice(0, options.maxDisplayPosts);
+    const nextCount = uniquePosts.length;
     setCount(nextCount);
     setProgress(Math.min((nextCount / options.maxDisplayPosts) * 92, 92));
+    if (nextCount > previousCount) {
+      onProgress(uniquePosts, page);
+    }
 
     if (uniquePosts.length >= options.maxDisplayPosts) {
-      return uniquePosts.slice(0, options.maxDisplayPosts);
+      return uniquePosts;
     }
 
     if (pagePosts.length < REMOTE_FETCH_LIMIT) {
@@ -298,7 +303,7 @@ async function searchPosts(tags, options, signal) {
     }
   }
 
-  return deduplicatePosts(posts).slice(0, options.maxDisplayPosts);
+  return uniquePosts;
 }
 
 function getVariant(post, preferredType) {
@@ -628,37 +633,43 @@ function updatePagination() {
   resultCount.textContent = `${start}-${end} / ${formatCount(total)}`;
 }
 
-function renderCurrentPage() {
+function renderCurrentPage({ resetPreview = true } = {}) {
   const totalPages = getTotalLocalPages();
   localPageIndex = Math.min(Math.max(localPageIndex, 0), totalPages - 1);
 
   const start = localPageIndex * currentDisplayOptions.limit;
   currentPosts = allPosts.slice(start, start + currentDisplayOptions.limit);
-  activePreviewIndex = -1;
+  if (resetPreview) {
+    activePreviewIndex = -1;
+  }
   renderGallery();
   updatePagination();
 }
 
-function renderPosts(posts, options) {
+function renderPosts(posts, options, { resetPage = true, showEmptyResult = true } = {}) {
   allPosts = posts;
   currentDisplayOptions = {
     pages: options.pages,
     limit: options.limit,
   };
-  localPageIndex = 0;
-  currentPosts = [];
-  activePreviewIndex = -1;
+  if (resetPage) {
+    localPageIndex = 0;
+    currentPosts = [];
+    activePreviewIndex = -1;
+  }
   emptyState.hidden = posts.length > 0;
 
   if (posts.length === 0) {
-    emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
-    emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
+    if (showEmptyResult) {
+      emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
+      emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
+    }
     renderGallery();
     updatePagination();
     return;
   }
 
-  renderCurrentPage();
+  renderCurrentPage({ resetPreview: resetPage });
 }
 
 function goToLocalPage(index) {
@@ -808,8 +819,16 @@ async function runSearch(tags) {
   );
 
   try {
-    const posts = await searchPosts(tags, options, activeController.signal);
-    renderPosts(posts, options);
+    const posts = await searchPosts(tags, options, activeController.signal, (partialPosts, page) => {
+      renderPosts(partialPosts, options, { resetPage: false, showEmptyResult: false });
+
+      if (partialPosts.length > 0) {
+        setStatus(
+          `已显示 ${partialPosts.length.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
+        );
+      }
+    });
+    renderPosts(posts, options, { resetPage: allPosts.length === 0 });
     setStatus(
       `${posts.length.toLocaleString("zh-CN")} 张图片，本地 ${getTotalLocalPages()} 页显示`
     );

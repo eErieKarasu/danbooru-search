@@ -7,15 +7,14 @@ const MAX_HISTORY_ITEMS = 9;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
-const MAX_REMOTE_FETCH_PAGES = 20;
+const DEFAULT_TARGET_POSTS = 150;
 
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
 const selectedTagsBox = document.querySelector("#selectedTags");
-const pagesInput = document.querySelector("#pagesInput");
-const limitInput = document.querySelector("#limitInput");
+const countInput = document.querySelector("#countInput");
 const searchButton = document.querySelector("#searchButton");
-const cancelButton = document.querySelector("#cancelButton");
+const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const historyToggleButton = document.querySelector("#historyToggleButton");
@@ -23,10 +22,6 @@ const currentTags = document.querySelector("#currentTags");
 const progressBar = document.querySelector("#progressBar");
 const statusText = document.querySelector("#statusText");
 const resultCount = document.querySelector("#resultCount");
-const paginationControls = Array.from(document.querySelectorAll("[data-pagination]"));
-const prevPageButtons = Array.from(document.querySelectorAll("[data-page-prev]"));
-const nextPageButtons = Array.from(document.querySelectorAll("[data-page-next]"));
-const pageIndicators = Array.from(document.querySelectorAll("[data-page-indicator]"));
 const noticeBox = document.querySelector("#noticeBox");
 const emptyState = document.querySelector("#emptyState");
 const gallery = document.querySelector("#gallery");
@@ -48,9 +43,6 @@ const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 let activeController = null;
 let selectedTags = [];
 let allPosts = [];
-let currentPosts = [];
-let localPageIndex = 0;
-let currentDisplayOptions = { pages: 3, limit: 50 };
 let activePreviewIndex = -1;
 let previewScrollY = 0;
 
@@ -211,9 +203,36 @@ function deduplicatePosts(posts) {
   });
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
+function createAbortError() {
+  const error = new Error("搜索已停止");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort);
+      resolve();
+    }, ms);
+
+    function handleAbort() {
+      window.clearTimeout(timeoutId);
+      reject(createAbortError());
+    }
+
+    signal?.addEventListener("abort", handleAbort, { once: true });
   });
 }
 
@@ -228,7 +247,7 @@ async function fetchJsonWithRetry(url, signal) {
       });
 
       if (response.status === 429 || response.status >= 500) {
-        await sleep(RETRY_SLEEP_MS * attempt);
+        await sleep(RETRY_SLEEP_MS * attempt, signal);
         continue;
       }
 
@@ -244,7 +263,7 @@ async function fetchJsonWithRetry(url, signal) {
       }
 
       lastError = error;
-      await sleep(RETRY_SLEEP_MS * attempt);
+      await sleep(RETRY_SLEEP_MS * attempt, signal);
     }
   }
 
@@ -257,7 +276,9 @@ async function searchPosts(tags, options, signal, onProgress = () => {}) {
   const posts = [];
   let uniquePosts = [];
 
-  for (let page = 1; page <= MAX_REMOTE_FETCH_PAGES; page += 1) {
+  for (let page = 1; ; page += 1) {
+    throwIfAborted(signal);
+
     const collectedCount = Math.min(uniquePosts.length, options.maxDisplayPosts);
     const previousCount = uniquePosts.length;
     const params = new URLSearchParams({
@@ -298,9 +319,7 @@ async function searchPosts(tags, options, signal, onProgress = () => {}) {
       break;
     }
 
-    if (page < MAX_REMOTE_FETCH_PAGES) {
-      await sleep(REQUEST_SLEEP_MS);
-    }
+    await sleep(REQUEST_SLEEP_MS, signal);
   }
 
   return uniquePosts;
@@ -580,14 +599,14 @@ function renderGallery() {
   gallery.replaceChildren();
   gallery.classList.toggle("is-mobile-masonry", shouldUseMobileMasonry());
 
-  if (currentPosts.length === 0) {
+  if (allPosts.length === 0) {
     return;
   }
 
   if (shouldUseMobileMasonry()) {
-    renderMobileMasonry(currentPosts);
+    renderMobileMasonry(allPosts);
   } else {
-    renderFlatGallery(currentPosts);
+    renderFlatGallery(allPosts);
   }
 
   if (activePreviewIndex >= 0) {
@@ -595,66 +614,9 @@ function renderGallery() {
   }
 }
 
-function getTotalLocalPages() {
-  if (allPosts.length === 0) {
-    return 1;
-  }
-
-  return Math.min(
-    currentDisplayOptions.pages,
-    Math.max(1, Math.ceil(allPosts.length / currentDisplayOptions.limit))
-  );
-}
-
-function updatePagination() {
-  const total = allPosts.length;
-  const totalPages = getTotalLocalPages();
-
-  paginationControls.forEach((control) => {
-    control.hidden = total === 0 || totalPages <= 1;
-  });
-  pageIndicators.forEach((indicator) => {
-    indicator.textContent = `${localPageIndex + 1}/${totalPages}`;
-  });
-  prevPageButtons.forEach((button) => {
-    button.disabled = localPageIndex <= 0;
-  });
-  nextPageButtons.forEach((button) => {
-    button.disabled = localPageIndex >= totalPages - 1;
-  });
-
-  if (total === 0) {
-    setCount(0);
-    return;
-  }
-
-  const start = localPageIndex * currentDisplayOptions.limit + 1;
-  const end = Math.min(total, (localPageIndex + 1) * currentDisplayOptions.limit);
-  resultCount.textContent = `${start}-${end} / ${formatCount(total)}`;
-}
-
-function renderCurrentPage({ resetPreview = true } = {}) {
-  const totalPages = getTotalLocalPages();
-  localPageIndex = Math.min(Math.max(localPageIndex, 0), totalPages - 1);
-
-  const start = localPageIndex * currentDisplayOptions.limit;
-  currentPosts = allPosts.slice(start, start + currentDisplayOptions.limit);
-  if (resetPreview) {
-    activePreviewIndex = -1;
-  }
-  renderGallery();
-  updatePagination();
-}
-
-function renderPosts(posts, options, { resetPage = true, showEmptyResult = true } = {}) {
+function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   allPosts = posts;
-  currentDisplayOptions = {
-    pages: options.pages,
-    limit: options.limit,
-  };
   if (resetPage) {
-    localPageIndex = 0;
-    currentPosts = [];
     activePreviewIndex = -1;
   }
   emptyState.hidden = posts.length > 0;
@@ -662,20 +624,15 @@ function renderPosts(posts, options, { resetPage = true, showEmptyResult = true 
   if (posts.length === 0) {
     if (showEmptyResult) {
       emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
-      emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加页数。";
+      emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加图片数量。";
     }
     renderGallery();
-    updatePagination();
+    setCount(0);
     return;
   }
 
-  renderCurrentPage({ resetPreview: resetPage });
-}
-
-function goToLocalPage(index) {
-  localPageIndex = index;
-  renderCurrentPage();
-  gallery.scrollIntoView({ block: "start", behavior: "smooth" });
+  renderGallery();
+  setCount(posts.length);
 }
 
 function setSelectedPost(index) {
@@ -708,7 +665,7 @@ function updatePreview(post, index) {
 }
 
 function openPreview(index) {
-  const post = currentPosts[index];
+  const post = allPosts[index];
 
   if (!post) {
     return;
@@ -769,17 +726,20 @@ function hideNotice() {
 function setLoading(isLoading) {
   document.body.classList.toggle("is-loading", isLoading);
   searchButton.disabled = isLoading;
-  cancelButton.hidden = !isLoading;
+  stopSearchButton.hidden = !isLoading;
+  stopSearchButton.disabled = !isLoading;
+  stopSearchButton.textContent = "停止";
 }
 
 function getOptions() {
-  const pages = Math.min(Math.max(Number(pagesInput.value) || 1, 1), 20);
-  const limit = Math.min(Math.max(Number(limitInput.value) || 50, 1), 100);
+  const targetValue = Number(countInput.value);
+  const targetCount = Number.isFinite(targetValue)
+    ? Math.max(Math.floor(targetValue), 1)
+    : DEFAULT_TARGET_POSTS;
 
   return {
-    pages,
-    limit,
-    maxDisplayPosts: pages * limit,
+    targetCount,
+    maxDisplayPosts: targetCount,
     maxRemoteTags: DEFAULT_MAX_REMOTE_TAGS,
     rating: DEFAULT_RATING,
   };
@@ -799,28 +759,32 @@ async function runSearch(tags) {
   const options = getOptions();
   const { remoteTags, localTags } = splitRemoteAndLocalTags(tags, options.maxRemoteTags);
 
-  activeController = new AbortController();
+  const controller = new AbortController();
+  activeController = controller;
   hideNotice();
   setLoading(true);
   setCount(0);
   setProgress(0);
   renderCurrentTags(tags, options.maxRemoteTags);
   allPosts = [];
-  currentPosts = [];
   activePreviewIndex = -1;
   gallery.replaceChildren();
-  updatePagination();
+  setCount(0);
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "正在搜索...";
   emptyState.querySelector("span").textContent =
-    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 本地最多 ${options.pages} 页，每页 ${options.limit} 张`;
+    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 目标 ${options.targetCount} 张`;
   setStatus(
     `远程 tag：${remoteTags.join(" ")}；本地过滤：${localTags.join(" ") || "无"}；评级：All`
   );
 
   try {
-    const posts = await searchPosts(tags, options, activeController.signal, (partialPosts, page) => {
-      renderPosts(partialPosts, options, { resetPage: false, showEmptyResult: false });
+    const posts = await searchPosts(tags, options, controller.signal, (partialPosts, page) => {
+      if (activeController !== controller) {
+        return;
+      }
+
+      renderPosts(partialPosts, { resetPage: false, showEmptyResult: false });
 
       if (partialPosts.length > 0) {
         setStatus(
@@ -828,17 +792,31 @@ async function runSearch(tags) {
         );
       }
     });
-    renderPosts(posts, options, { resetPage: allPosts.length === 0 });
-    setStatus(
-      `${posts.length.toLocaleString("zh-CN")} 张图片，本地 ${getTotalLocalPages()} 页显示`
-    );
+
+    if (activeController !== controller) {
+      return;
+    }
+
+    renderPosts(posts, { resetPage: allPosts.length === 0 });
+    setStatus(`${posts.length.toLocaleString("zh-CN")} 张图片已显示`);
     setProgress(100);
     saveHistory(tags);
   } catch (error) {
+    if (activeController !== controller) {
+      return;
+    }
+
     if (error.name === "AbortError") {
-      setStatus("搜索已停止");
-      emptyState.querySelector("p").textContent = "搜索已停止。";
-      emptyState.querySelector("span").textContent = "可以调整 tag 后重新搜索。";
+      const retainedCount = allPosts.length;
+      if (retainedCount > 0) {
+        renderPosts(allPosts, { resetPage: false, showEmptyResult: false });
+        setStatus(`搜索已停止，已保留 ${retainedCount.toLocaleString("zh-CN")} 张图片`);
+      } else {
+        setStatus("搜索已停止");
+        emptyState.hidden = false;
+        emptyState.querySelector("p").textContent = "搜索已停止。";
+        emptyState.querySelector("span").textContent = "可以调整 tag 后重新搜索。";
+      }
     } else {
       showNotice(error.message || "请求失败，请稍后重试。");
       setStatus("请求失败");
@@ -846,9 +824,22 @@ async function runSearch(tags) {
       emptyState.querySelector("span").textContent = "请检查网络或稍后重试。";
     }
   } finally {
-    setLoading(false);
-    activeController = null;
+    if (activeController === controller) {
+      setLoading(false);
+      activeController = null;
+    }
   }
+}
+
+function stopActiveSearch() {
+  if (!activeController) {
+    return;
+  }
+
+  stopSearchButton.disabled = true;
+  stopSearchButton.textContent = "停止中";
+  setStatus("正在停止搜索...");
+  activeController.abort();
 }
 
 searchForm.addEventListener("submit", (event) => {
@@ -891,10 +882,8 @@ tagInput.addEventListener("input", () => {
   }
 });
 
-cancelButton.addEventListener("click", () => {
-  if (activeController) {
-    activeController.abort();
-  }
+stopSearchButton.addEventListener("click", () => {
+  stopActiveSearch();
 });
 
 clearButton.addEventListener("click", () => {
@@ -905,14 +894,11 @@ clearButton.addEventListener("click", () => {
   selectedTags = [];
   tagInput.value = "";
   allPosts = [];
-  currentPosts = [];
-  localPageIndex = 0;
   activePreviewIndex = -1;
   gallery.replaceChildren();
   hideNotice();
   setCount(0);
   setProgress(0);
-  updatePagination();
   renderSelectedTags();
   renderCurrentTags();
   setStatus("等待输入 tag");
@@ -940,22 +926,6 @@ historyList.addEventListener("click", (event) => {
 
   setTags(parseTags(item.dataset.tags || ""));
   tagInput.focus();
-});
-
-prevPageButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    if (localPageIndex > 0) {
-      goToLocalPage(localPageIndex - 1);
-    }
-  });
-});
-
-nextPageButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    if (localPageIndex < getTotalLocalPages() - 1) {
-      goToLocalPage(localPageIndex + 1);
-    }
-  });
 });
 
 document.querySelectorAll(".view-button").forEach((button) => {
@@ -994,4 +964,3 @@ renderHistory();
 setHistoryCollapsed(false);
 renderSelectedTags();
 renderCurrentTags();
-updatePagination();

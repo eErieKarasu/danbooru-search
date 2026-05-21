@@ -8,8 +8,8 @@
       name="description"
       content="匿名搜索 Danbooru posts，支持多 tag 输入、本地过滤和图片预览。"
     >
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="stylesheet" href="css/styles.css?v=20260519-preview-refresh">
+    <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
+    <link rel="stylesheet" href="css/styles.css?v=20260521-single-page-results">
   </head>
   <body>
     <main class="app-shell">
@@ -37,31 +37,14 @@
               </button>
             </div>
             <p class="field-hint">支持同时输入多个 tag，用空格或回车分隔</p>
-          </section>
-
-          <details class="advanced-options">
-            <summary>高级选项</summary>
-            <div class="controls">
-              <label class="control">
-                <span>页数</span>
-                <input id="pagesInput" type="number" min="1" max="20" value="3">
+            <div class="search-controls">
+              <label class="control search-count-control">
+                <span>图片数量</span>
+                <input id="countInput" type="number" min="1" step="1" value="150">
               </label>
-
-              <label class="control">
-                <span>每页</span>
-                <select id="limitInput">
-                  <option value="50" selected>50</option>
-                  <option value="100">100</option>
-                </select>
-              </label>
-            </div>
-            <div class="compact-actions">
-              <button class="ghost-button danger-button" id="cancelButton" type="button" hidden>
-                停止
-              </button>
               <button class="ghost-button" id="clearButton" type="button">清空当前</button>
             </div>
-          </details>
+          </section>
 
           <section class="history-section" aria-labelledby="historyTitle">
             <div class="section-heading">
@@ -106,12 +89,10 @@
             <span class="tag-chip is-muted">等待输入</span>
           </div>
           <div class="result-side">
+            <button class="stop-search-button" id="stopSearchButton" type="button" hidden>
+              停止
+            </button>
             <div class="result-count" id="resultCount">0 张图片</div>
-            <nav class="pagination-controls" aria-label="顶部本地分页" data-pagination hidden>
-              <button class="page-button" type="button" aria-label="上一页" data-page-prev>‹</button>
-              <span data-page-indicator>1/1</span>
-              <button class="page-button" type="button" aria-label="下一页" data-page-next>›</button>
-            </nav>
           </div>
         </section>
 
@@ -129,13 +110,6 @@
         </section>
 
         <section class="gallery" id="gallery" aria-label="搜索结果"></section>
-        <div class="gallery-footer">
-          <nav class="pagination-controls pagination-controls-bottom" aria-label="底部本地分页" data-pagination hidden>
-            <button class="page-button" type="button" aria-label="上一页" data-page-prev>‹</button>
-            <span data-page-indicator>1/1</span>
-            <button class="page-button" type="button" aria-label="下一页" data-page-next>›</button>
-          </nav>
-        </div>
       </section>
     </main>
 
@@ -215,6 +189,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260520-incremental-search"></script>
+    <script src="js/app.js?v=20260521-single-page-results"></script>
   </body>
 </html>

@@ -382,38 +382,6 @@ p {
   margin-bottom: 0;
 }
 
-.collapse-button {
-  display: inline-grid;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
-  transition:
-    background 160ms ease,
-    color 160ms ease;
-}
-
-.collapse-button:hover {
-  background: var(--surface-soft);
-  color: var(--accent-strong);
-}
-
-.collapse-button span {
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translate(-1px, -1px);
-  transition: transform 160ms ease;
-}
-
-.collapse-button.is-collapsed span {
-  transform: rotate(-45deg);
-}
-
 .text-button {
   padding: 0;
   color: var(--accent);
@@ -425,11 +393,14 @@ p {
 }
 
 .history-list {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .empty-list {
+  width: 100%;
   margin: 0;
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -438,73 +409,33 @@ p {
   font-size: 0.84rem;
 }
 
-.history-item {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 16px;
-  min-height: 38px;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #292d40;
-  padding: 0 10px;
-  text-align: left;
-  box-shadow: 0 5px 12px rgba(45, 48, 72, 0.03);
+.history-tag {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-color: rgba(91, 77, 242, 0.13);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  text-overflow: ellipsis;
   transition:
+    background 160ms ease,
     border-color 160ms ease,
     color 160ms ease,
     transform 140ms ease;
 }
 
-.history-item:hover {
+.history-tag:hover {
+  border-color: rgba(91, 77, 242, 0.28);
+  background: #ffffff;
+  color: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.history-tag:focus-visible {
+  outline: 3px solid rgba(91, 77, 242, 0.16);
+  outline-offset: 2px;
   border-color: rgba(91, 77, 242, 0.28);
   color: var(--accent-strong);
-  transform: translateX(2px);
-}
-
-.history-clock,
-.history-return {
-  position: relative;
-  color: var(--subtle);
-}
-
-.history-clock {
-  width: 15px;
-  height: 15px;
-  border: 1.8px solid currentColor;
-  border-radius: 50%;
-}
-
-.history-clock::before,
-.history-clock::after {
-  position: absolute;
-  left: 6px;
-  background: currentColor;
-  content: "";
-  transform-origin: bottom;
-}
-
-.history-clock::before {
-  top: 3px;
-  width: 1.5px;
-  height: 4px;
-}
-
-.history-clock::after {
-  top: 6px;
-  width: 5px;
-  height: 1.5px;
-}
-
-.history-return::before {
-  content: "↵";
-}
-
-.history-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .results-shell {

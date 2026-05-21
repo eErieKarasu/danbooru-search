@@ -3,7 +3,7 @@ const RETRY_SLEEP_MS = 1400;
 const REQUEST_SLEEP_MS = 700;
 const MAX_RETRIES = 3;
 const HISTORY_KEY = "danbooru-search-history";
-const MAX_HISTORY_ITEMS = 9;
+const MAX_HISTORY_ITEMS = 15;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
@@ -17,7 +17,6 @@ const searchButton = document.querySelector("#searchButton");
 const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
-const historyToggleButton = document.querySelector("#historyToggleButton");
 const currentTags = document.querySelector("#currentTags");
 const progressBar = document.querySelector("#progressBar");
 const statusText = document.querySelector("#statusText");
@@ -427,7 +426,20 @@ function renderDialogTags(post) {
 function readHistory() {
   try {
     const rawHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    return Array.isArray(rawHistory) ? rawHistory.filter(Array.isArray).map(uniqueTags) : [];
+
+    if (!Array.isArray(rawHistory)) {
+      return [];
+    }
+
+    const tags = rawHistory.flatMap((item) => {
+      if (Array.isArray(item)) {
+        return item;
+      }
+
+      return typeof item === "string" ? [item] : [];
+    });
+
+    return uniqueTags(tags).slice(0, MAX_HISTORY_ITEMS);
   } catch {
     return [];
   }
@@ -435,7 +447,10 @@ function readHistory() {
 
 function writeHistory(history) {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ITEMS)));
+    localStorage.setItem(
+      HISTORY_KEY,
+      JSON.stringify(uniqueTags(history).slice(0, MAX_HISTORY_ITEMS))
+    );
   } catch {
     // Ignore storage failures; search should keep working without history.
   }
@@ -448,9 +463,8 @@ function saveHistory(tags) {
     return;
   }
 
-  const key = normalizedTags.join(" ");
-  const history = readHistory().filter((item) => item.join(" ") !== key);
-  writeHistory([normalizedTags, ...history]);
+  const history = readHistory().filter((tag) => !normalizedTags.includes(tag));
+  writeHistory([...normalizedTags, ...history]);
   renderHistory();
 }
 
@@ -466,26 +480,15 @@ function renderHistory() {
     return;
   }
 
-  history.forEach((tags) => {
+  history.forEach((tag) => {
     const button = document.createElement("button");
-    button.className = "history-item";
+    button.className = "tag-chip history-tag";
     button.type = "button";
-    button.dataset.tags = tags.join(" ");
-    button.innerHTML = `
-      <span class="history-clock" aria-hidden="true"></span>
-      <span class="history-label"></span>
-      <span class="history-return" aria-hidden="true"></span>
-    `;
-    button.querySelector(".history-label").textContent = tags.join(" ");
+    button.dataset.tag = tag;
+    button.setAttribute("aria-label", `添加历史 tag ${tag}`);
+    button.textContent = tag;
     historyList.append(button);
   });
-}
-
-function setHistoryCollapsed(isCollapsed) {
-  historyList.hidden = isCollapsed;
-  historyToggleButton.classList.toggle("is-collapsed", isCollapsed);
-  historyToggleButton.setAttribute("aria-expanded", String(!isCollapsed));
-  historyToggleButton.setAttribute("aria-label", isCollapsed ? "展开历史 Tag" : "收起历史 Tag");
 }
 
 function renderSelectedTags() {
@@ -913,18 +916,14 @@ clearHistoryButton.addEventListener("click", () => {
   renderHistory();
 });
 
-historyToggleButton.addEventListener("click", () => {
-  setHistoryCollapsed(!historyList.hidden);
-});
-
 historyList.addEventListener("click", (event) => {
-  const item = event.target.closest(".history-item");
+  const item = event.target.closest(".history-tag");
 
   if (!item) {
     return;
   }
 
-  setTags(parseTags(item.dataset.tags || ""));
+  addTags([item.dataset.tag || ""]);
   tagInput.focus();
 });
 
@@ -961,6 +960,5 @@ if (typeof mobileGalleryQuery.addEventListener === "function") {
 }
 
 renderHistory();
-setHistoryCollapsed(false);
 renderSelectedTags();
 renderCurrentTags();

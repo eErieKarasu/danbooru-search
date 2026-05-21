@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260521">
     <meta name="apple-mobile-web-app-title" content="danbooru-search">
-    <link rel="stylesheet" href="css/styles.css?v=20260521-single-page-results">
+    <link rel="stylesheet" href="css/styles.css?v=20260521-history-tags-always-visible">
   </head>
   <body>
     <main class="app-shell">
@@ -51,16 +51,6 @@
           <section class="history-section" aria-labelledby="historyTitle">
             <div class="section-heading">
               <div class="heading-title">
-                <button
-                  class="collapse-button"
-                  id="historyToggleButton"
-                  type="button"
-                  aria-label="收起历史 Tag"
-                  aria-controls="historyList"
-                  aria-expanded="true"
-                >
-                  <span aria-hidden="true"></span>
-                </button>
                 <h2 id="historyTitle">历史 Tag</h2>
               </div>
               <button class="text-button" id="clearHistoryButton" type="button">清空</button>
@@ -191,6 +181,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260521-single-page-results"></script>
+    <script src="js/app.js?v=20260521-history-tags-always-visible"></script>
   </body>
 </html>

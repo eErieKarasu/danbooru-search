@@ -8,6 +8,7 @@ const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
 const DEFAULT_TARGET_POSTS = 150;
+const DIALOG_TAG_PREVIEW_LIMIT = 14;
 
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
@@ -393,9 +394,11 @@ function getPreviewTags(post) {
   return tags;
 }
 
-function renderDialogTags(post) {
+function renderDialogTags(post, { expanded = false } = {}) {
   const previewTags = getPreviewTags(post);
-  const visibleTags = previewTags.slice(0, 14);
+  const visibleTags = expanded
+    ? previewTags
+    : previewTags.slice(0, DIALOG_TAG_PREVIEW_LIMIT);
   const hiddenCount = Math.max(previewTags.length - visibleTags.length, 0);
   const fragment = document.createDocumentFragment();
 
@@ -406,10 +409,15 @@ function renderDialogTags(post) {
     fragment.append(chip);
   });
 
-  if (hiddenCount > 0) {
-    const moreChip = document.createElement("span");
+  if (!expanded && hiddenCount > 0) {
+    const moreChip = document.createElement("button");
+    moreChip.type = "button";
     moreChip.className = "dialog-tag-chip dialog-tag-more";
     moreChip.textContent = `+ ${hiddenCount} 更多`;
+    moreChip.setAttribute("aria-label", `展开全部 ${previewTags.length} 个标签`);
+    moreChip.addEventListener("click", () => {
+      renderDialogTags(post, { expanded: true });
+    });
     fragment.append(moreChip);
   }
 

@@ -1000,6 +1000,7 @@ p {
 }
 
 .dialog-tag-chip {
+  appearance: none;
   display: inline-flex;
   min-height: 38px;
   max-width: 100%;
@@ -1009,10 +1010,12 @@ p {
   background: var(--surface-soft);
   color: #202234;
   padding: 0 13px;
+  font-family: inherit;
   font-size: 0.86rem;
   font-weight: 750;
   line-height: 1;
   overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .dialog-tag-chip.is-muted {
@@ -1023,8 +1026,19 @@ p {
   border-color: rgba(91, 77, 242, 0.3);
   background: #ffffff;
   color: var(--accent-strong);
+  cursor: pointer;
   outline: 1px dashed rgba(91, 77, 242, 0.28);
   outline-offset: -2px;
+}
+
+.dialog-tag-more:hover {
+  border-color: rgba(91, 77, 242, 0.48);
+  background: rgba(91, 77, 242, 0.08);
+}
+
+.dialog-tag-more:focus-visible {
+  outline: 3px solid rgba(91, 77, 242, 0.3);
+  outline-offset: 2px;
 }
 
 .dialog-divider {

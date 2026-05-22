@@ -3,6 +3,7 @@ const RETRY_SLEEP_MS = 1400;
 const REQUEST_SLEEP_MS = 700;
 const MAX_RETRIES = 3;
 const HISTORY_KEY = "danbooru-search-history";
+const FAVORITES_KEY = "danbooru-search-favorites";
 const MAX_HISTORY_ITEMS = 15;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
@@ -17,6 +18,9 @@ const countInput = document.querySelector("#countInput");
 const searchButton = document.querySelector("#searchButton");
 const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
+const showFavoritesButton = document.querySelector("#showFavoritesButton");
+const clearFavoritesButton = document.querySelector("#clearFavoritesButton");
+const favoriteSummary = document.querySelector("#favoriteSummary");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const currentTags = document.querySelector("#currentTags");
 const progressBar = document.querySelector("#progressBar");
@@ -32,6 +36,7 @@ const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
 const dialogImage = document.querySelector("#dialogImage");
 const dialogRatingBadge = document.querySelector("#dialogRatingBadge");
+const dialogFavoriteButton = document.querySelector("#dialogFavoriteButton");
 const dialogScorePill = document.querySelector("#dialogScorePill");
 const dialogTags = document.querySelector("#dialogTags");
 const dialogDimensions = document.querySelector("#dialogDimensions");
@@ -43,7 +48,11 @@ const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 let activeController = null;
 let selectedTags = [];
 let allPosts = [];
+let searchPostsCache = [];
+let favoritePosts = new Map();
+let isFavoritesView = false;
 let activePreviewIndex = -1;
+let activePreviewPost = null;
 let previewScrollY = 0;
 
 const RATING_LABELS = {
@@ -431,6 +440,178 @@ function renderDialogTags(post, { expanded = false } = {}) {
   dialogTags.replaceChildren(fragment);
 }
 
+function getPostKey(postOrId) {
+  const id = typeof postOrId === "object" ? postOrId?.id : postOrId;
+  const key = String(id ?? "").trim();
+
+  return key && key !== "undefined" && key !== "null" ? key : "";
+}
+
+function normalizeFavoritePost(item) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const id = Number(item.id);
+
+  if (!Number.isFinite(id) || id <= 0) {
+    return null;
+  }
+
+  const numericField = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  };
+
+  return {
+    id,
+    rating: String(item.rating || ""),
+    score: Number.isFinite(Number(item.score)) ? Number(item.score) : 0,
+    image_width: numericField(item.image_width),
+    image_height: numericField(item.image_height),
+    file_size: numericField(item.file_size),
+    preview_file_url: String(item.preview_file_url || ""),
+    large_file_url: String(item.large_file_url || item.file_url || ""),
+    file_url: String(item.file_url || item.large_file_url || ""),
+    tag_string_general: String(item.tag_string_general || ""),
+    tag_string_character: String(item.tag_string_character || ""),
+    tag_string_copyright: String(item.tag_string_copyright || ""),
+    tag_string_artist: String(item.tag_string_artist || ""),
+    tag_string_meta: String(item.tag_string_meta || ""),
+    tag_string: String(item.tag_string || ""),
+    favorited_at: String(item.favorited_at || new Date(0).toISOString()),
+  };
+}
+
+function readFavorites() {
+  try {
+    const rawFavorites = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+    const items = Array.isArray(rawFavorites)
+      ? rawFavorites
+      : Object.values(rawFavorites || {});
+    const favorites = new Map();
+
+    items.forEach((item) => {
+      const favorite = normalizeFavoritePost(item);
+
+      if (favorite) {
+        favorites.set(getPostKey(favorite), favorite);
+      }
+    });
+
+    return favorites;
+  } catch {
+    return new Map();
+  }
+}
+
+function writeFavorites() {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(favoritePosts.values())));
+  } catch {
+    // Ignore storage failures; the current search and preview should keep working.
+  }
+}
+
+function createFavoriteSnapshot(post) {
+  const size = getPostSize(post);
+  const tags = getPreviewTags(post);
+
+  return normalizeFavoritePost({
+    id: post.id,
+    rating: post.rating,
+    score: post.score,
+    image_width: size?.width,
+    image_height: size?.height,
+    file_size: post.file_size || post.media_asset?.file_size,
+    preview_file_url: getPreviewUrl(post),
+    large_file_url: post.large_file_url || getLargeUrl(post),
+    file_url: getLargeUrl(post),
+    tag_string_general: post.tag_string_general,
+    tag_string_character: post.tag_string_character,
+    tag_string_copyright: post.tag_string_copyright,
+    tag_string_artist: post.tag_string_artist,
+    tag_string_meta: post.tag_string_meta,
+    tag_string: post.tag_string || tags.join(" "),
+    favorited_at: new Date().toISOString(),
+  });
+}
+
+function getFavoritePosts() {
+  return Array.from(favoritePosts.values()).sort((a, b) => {
+    return (Date.parse(b.favorited_at) || 0) - (Date.parse(a.favorited_at) || 0);
+  });
+}
+
+function updateFavoriteButton(button, postOrId) {
+  const key = getPostKey(postOrId || button.dataset.favoritePostId);
+
+  if (!key) {
+    button.disabled = true;
+    return;
+  }
+
+  const isFavorite = favoritePosts.has(key);
+  button.disabled = false;
+  button.dataset.favoritePostId = key;
+  button.classList.toggle("is-active", isFavorite);
+  button.setAttribute("aria-pressed", String(isFavorite));
+  button.setAttribute(
+    "aria-label",
+    `${isFavorite ? "取消收藏" : "收藏"} Post #${key}`
+  );
+}
+
+function syncFavoriteButtons() {
+  document.querySelectorAll(".favorite-button[data-favorite-post-id]").forEach((button) => {
+    updateFavoriteButton(button);
+  });
+
+  if (dialogFavoriteButton.dataset.favoritePostId) {
+    updateFavoriteButton(dialogFavoriteButton);
+  }
+}
+
+function renderFavoriteSummary() {
+  const count = favoritePosts.size;
+  const title = showFavoritesButton.querySelector("strong");
+
+  favoriteSummary.textContent =
+    count > 0 ? `${count.toLocaleString("zh-CN")} 张已收藏` : "暂无收藏";
+  title.textContent = isFavoritesView ? "返回搜索" : "查看收藏";
+  showFavoritesButton.disabled = count === 0 && !isFavoritesView;
+  showFavoritesButton.classList.toggle("is-active", isFavoritesView);
+  showFavoritesButton.setAttribute("aria-pressed", String(isFavoritesView));
+  clearFavoritesButton.disabled = count === 0;
+}
+
+function toggleFavorite(post) {
+  const key = getPostKey(post);
+
+  if (!key) {
+    return;
+  }
+
+  if (favoritePosts.has(key)) {
+    favoritePosts.delete(key);
+  } else {
+    const snapshot = createFavoriteSnapshot(post);
+
+    if (snapshot) {
+      favoritePosts.set(key, snapshot);
+    }
+  }
+
+  writeFavorites();
+  renderFavoriteSummary();
+
+  if (isFavoritesView) {
+    showFavoritePosts();
+  } else {
+    syncFavoriteButtons();
+  }
+}
+
 function readHistory() {
   try {
     const rawHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
@@ -562,6 +743,7 @@ function createPostCard(post, index) {
   const postId = node.querySelector(".post-id");
   const tags = node.querySelector(".post-tags");
   const postLink = node.querySelector(".post-link");
+  const favoriteButton = node.querySelector(".favorite-button-card");
   const previewUrl = getPreviewUrl(post);
 
   node.dataset.postIndex = String(index);
@@ -574,6 +756,13 @@ function createPostCard(post, index) {
   postId.textContent = `#${post.id}`;
   tags.textContent = getTagSummary(post) || `post ${post.id}`;
   postLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
+  updateFavoriteButton(favoriteButton, post);
+
+  favoriteButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFavorite(post);
+  });
 
   imageButton.addEventListener("click", () => openPreview(index));
   return node;
@@ -646,6 +835,55 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   setCount(posts.length);
 }
 
+function showFavoritePosts() {
+  if (activeController) {
+    activeController.abort();
+    activeController = null;
+    setLoading(false);
+  }
+
+  const favorites = getFavoritePosts();
+  isFavoritesView = true;
+  activePreviewIndex = -1;
+  hideNotice();
+  setProgress(0);
+  renderCurrentTags(["本地收藏"], 1);
+  renderPosts(favorites, { resetPage: true, showEmptyResult: false });
+
+  if (favorites.length === 0) {
+    emptyState.hidden = false;
+    emptyState.querySelector("p").textContent = "暂无收藏。";
+    emptyState.querySelector("span").textContent = "点击图片上的爱心后，会在这里汇总。";
+    setStatus("暂无收藏");
+  } else {
+    setStatus(`${favorites.length.toLocaleString("zh-CN")} 张收藏已显示`);
+  }
+
+  renderFavoriteSummary();
+  syncFavoriteButtons();
+}
+
+function restoreSearchPosts() {
+  isFavoritesView = false;
+  activePreviewIndex = -1;
+  hideNotice();
+  setProgress(searchPostsCache.length > 0 ? 100 : 0);
+  renderCurrentTags(getPendingTags(), getOptions().maxRemoteTags);
+  renderPosts(searchPostsCache, { resetPage: true, showEmptyResult: false });
+
+  if (searchPostsCache.length > 0) {
+    setStatus(`${searchPostsCache.length.toLocaleString("zh-CN")} 张图片已显示`);
+  } else {
+    emptyState.hidden = false;
+    emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
+    emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
+    setStatus("等待输入 tag");
+  }
+
+  renderFavoriteSummary();
+  syncFavoriteButtons();
+}
+
 function setSelectedPost(index) {
   gallery.querySelectorAll(".post-card.is-selected").forEach((node) => {
     node.classList.remove("is-selected");
@@ -661,12 +899,14 @@ function setSelectedPost(index) {
 function updatePreview(post, index) {
   const largeUrl = getLargeUrl(post);
 
+  activePreviewPost = post;
   setSelectedPost(index);
   dialogTitle.textContent = `Post #${post.id}`;
   dialogImage.src = largeUrl;
   dialogImage.alt = `Danbooru post ${post.id}`;
   dialogRatingBadge.className = `dialog-rating-pill rating-${post.rating || "unknown"}`;
   dialogRatingBadge.textContent = formatRating(post.rating);
+  updateFavoriteButton(dialogFavoriteButton, post);
   dialogScorePill.textContent = `${post.score ?? 0} 分`;
   renderDialogTags(post);
   dialogDimensions.textContent = getDimensions(post);
@@ -770,6 +1010,10 @@ async function runSearch(tags) {
   const options = getOptions();
   const { remoteTags, localTags } = splitRemoteAndLocalTags(tags, options.maxRemoteTags);
 
+  isFavoritesView = false;
+  searchPostsCache = [];
+  renderFavoriteSummary();
+
   const controller = new AbortController();
   activeController = controller;
   hideNotice();
@@ -795,6 +1039,7 @@ async function runSearch(tags) {
         return;
       }
 
+      searchPostsCache = partialPosts;
       renderPosts(partialPosts, { resetPage: false, showEmptyResult: false });
 
       if (partialPosts.length > 0) {
@@ -808,6 +1053,7 @@ async function runSearch(tags) {
       return;
     }
 
+    searchPostsCache = posts;
     renderPosts(posts, { resetPage: allPosts.length === 0 });
     setStatus(`${posts.length.toLocaleString("zh-CN")} 张图片已显示`);
     setProgress(100);
@@ -905,18 +1151,48 @@ clearButton.addEventListener("click", () => {
   selectedTags = [];
   tagInput.value = "";
   allPosts = [];
+  searchPostsCache = [];
+  isFavoritesView = false;
   activePreviewIndex = -1;
   gallery.replaceChildren();
   hideNotice();
   setCount(0);
   setProgress(0);
   renderSelectedTags();
+  renderFavoriteSummary();
   renderCurrentTags();
   setStatus("等待输入 tag");
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
   emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
   tagInput.focus();
+});
+
+showFavoritesButton.addEventListener("click", () => {
+  if (isFavoritesView) {
+    restoreSearchPosts();
+  } else {
+    showFavoritePosts();
+  }
+});
+
+clearFavoritesButton.addEventListener("click", () => {
+  if (favoritePosts.size === 0) {
+    return;
+  }
+
+  if (!window.confirm("清空所有收藏？")) {
+    return;
+  }
+
+  favoritePosts.clear();
+  writeFavorites();
+  renderFavoriteSummary();
+  syncFavoriteButtons();
+
+  if (isFavoritesView) {
+    showFavoritePosts();
+  }
 });
 
 clearHistoryButton.addEventListener("click", () => {
@@ -949,12 +1225,23 @@ dialogImage.addEventListener("click", () => {
   previewDialog.close();
 });
 
+dialogFavoriteButton.addEventListener("click", () => {
+  const fallbackKey = dialogFavoriteButton.dataset.favoritePostId;
+  const post = activePreviewPost || allPosts[activePreviewIndex] || favoritePosts.get(fallbackKey);
+
+  if (post) {
+    toggleFavorite(post);
+  }
+});
+
 closeDialogButton.addEventListener("click", () => {
   previewDialog.close();
 });
 
 previewDialog.addEventListener("close", () => {
   dialogImage.removeAttribute("src");
+  dialogFavoriteButton.removeAttribute("data-favorite-post-id");
+  activePreviewPost = null;
 
   window.requestAnimationFrame(() => {
     window.scrollTo({ top: previewScrollY, left: 0, behavior: "auto" });
@@ -967,6 +1254,8 @@ if (typeof mobileGalleryQuery.addEventListener === "function") {
   mobileGalleryQuery.addListener(renderGallery);
 }
 
+favoritePosts = readFavorites();
+renderFavoriteSummary();
 renderHistory();
 renderSelectedTags();
 renderCurrentTags();

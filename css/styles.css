@@ -124,11 +124,13 @@ p {
 }
 
 .search-section,
+.favorites-section,
 .history-section {
   margin-bottom: 30px;
 }
 
 .search-section h2,
+.favorites-section h2,
 .history-section h2 {
   margin-bottom: 12px;
   color: #171827;
@@ -390,6 +392,78 @@ p {
 
 .text-button:hover {
   color: var(--accent-strong);
+}
+
+.text-button:disabled {
+  cursor: not-allowed;
+  color: var(--subtle);
+}
+
+.favorite-view-button {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #252839;
+  padding: 0 12px;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 140ms ease;
+}
+
+.favorite-view-button:hover:not(:disabled) {
+  border-color: rgba(223, 75, 87, 0.28);
+  background: #fff8f9;
+  transform: translateY(-1px);
+}
+
+.favorite-view-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.favorite-view-button.is-active {
+  border-color: rgba(223, 75, 87, 0.28);
+  background: var(--danger-soft);
+}
+
+.favorite-view-icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.favorite-view-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.favorite-view-copy strong {
+  color: #252839;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.favorite-view-copy span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-list {
@@ -741,9 +815,59 @@ p {
   color: var(--danger);
 }
 
+.favorite-button {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(223, 75, 87, 0.2);
+  background: rgba(255, 255, 255, 0.94);
+  color: #74788a;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.favorite-button:hover {
+  border-color: rgba(223, 75, 87, 0.42);
+  background: #ffffff;
+  color: var(--danger);
+  transform: translateY(-1px);
+}
+
+.favorite-button.is-active {
+  border-color: rgba(223, 75, 87, 0.34);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.favorite-button:focus-visible {
+  outline: 3px solid rgba(223, 75, 87, 0.24);
+  outline-offset: 2px;
+}
+
+.heart-icon {
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.heart-icon::before {
+  content: "\2661";
+  font-size: 1.22rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.favorite-button.is-active .heart-icon::before,
+.favorite-view-button.is-active .heart-icon::before {
+  content: "\2665";
+}
+
 .score-label {
   position: absolute;
-  top: 10px;
+  top: 52px;
   right: 10px;
   background: rgba(16, 18, 32, 0.62);
   color: #ffffff;
@@ -792,6 +916,23 @@ p {
   transform: translateY(-1px);
 }
 
+.favorite-button-card {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  opacity: 0;
+}
+
+.post-card:hover .favorite-button-card,
+.post-card.is-selected .favorite-button-card,
+.favorite-button-card.is-active {
+  opacity: 1;
+}
+
 .gallery.is-list {
   grid-auto-rows: auto;
   grid-template-columns: 1fr;
@@ -808,6 +949,10 @@ p {
 }
 
 .gallery.is-list .post-link {
+  opacity: 1;
+}
+
+.gallery.is-list .favorite-button-card {
   opacity: 1;
 }
 
@@ -918,6 +1063,13 @@ p {
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 1rem;
+}
+
+.favorite-button-dialog {
+  width: 54px;
+  min-height: 54px;
+  border-radius: 12px;
+  font-size: 1.1rem;
 }
 
 .icon-button {
@@ -1323,8 +1475,21 @@ p {
     padding: 4px 6px;
   }
 
+  .gallery.is-mobile-masonry .score-label {
+    top: 46px;
+    right: 8px;
+  }
+
   .gallery.is-mobile-masonry .post-link {
     display: none;
+  }
+
+  .gallery.is-mobile-masonry .favorite-button-card {
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    opacity: 1;
   }
 
   .preview-dialog {

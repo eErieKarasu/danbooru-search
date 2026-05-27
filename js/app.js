@@ -27,6 +27,9 @@ const statusText = document.querySelector("#statusText");
 const resultCount = document.querySelector("#resultCount");
 const noticeBox = document.querySelector("#noticeBox");
 const emptyState = document.querySelector("#emptyState");
+const emptyStateIcon = emptyState.querySelector(".empty-search-line .search-glyph");
+const emptyStateTitle = emptyState.querySelector(".empty-copy p");
+const emptyStateDescription = emptyState.querySelector(".empty-copy span");
 const gallery = document.querySelector("#gallery");
 const postTemplate = document.querySelector("#postTemplate");
 const historyList = document.querySelector("#historyList");
@@ -942,13 +945,15 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   if (filteredPosts.length === 0) {
     if (showEmptyResult) {
       if (posts.length === 0) {
-        emptyState.querySelector("p").textContent = isFavoritesView ? "暂无收藏。" : "没有找到符合条件的图片。";
-        emptyState.querySelector("span").textContent = isFavoritesView
-          ? "回到搜索结果后点星标加入收藏。"
-          : "可以减少本地过滤 tag 或增加图片数量。";
+        setEmptyStateCopy(
+          isFavoritesView ? "暂无收藏。" : "没有找到符合条件的图片。",
+          isFavoritesView ? "回到搜索结果后点星标加入收藏。" : "可以减少本地过滤 tag 或增加图片数量。"
+        );
       } else {
-        emptyState.querySelector("p").textContent = isFavoritesView ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。";
-        emptyState.querySelector("span").textContent = "换一个级别、比例、尺寸或排序条件继续查看。";
+        setEmptyStateCopy(
+          isFavoritesView ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。",
+          "换一个级别、比例、尺寸或排序条件继续查看。"
+        );
       }
     }
     renderGallery();
@@ -979,8 +984,7 @@ function showFavoritePosts({ resetPage = true } = {}) {
 
   if (favorites.length === 0) {
     emptyState.hidden = false;
-    emptyState.querySelector("p").textContent = "暂无收藏。";
-    emptyState.querySelector("span").textContent = "回到搜索结果后点星标加入收藏。";
+    setEmptyStateCopy("暂无收藏。", "回到搜索结果后点星标加入收藏。");
     setStatus("暂无收藏");
   } else {
     updateViewStatus({ force: true });
@@ -1004,8 +1008,7 @@ function restoreSearchPosts() {
     setInspectorMode("结果浏览");
   } else {
     emptyState.hidden = false;
-    emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
-    emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
+    setEmptyStateCopy("输入 tag 后，图片会显示在这里。", "默认使用 All 评级和本地过滤。");
     setStatus("等待输入 tag");
     setInspectorMode("待检索");
   }
@@ -1210,6 +1213,20 @@ function hideNotice() {
   noticeBox.hidden = true;
 }
 
+function setEmptyStateCopy(title, description) {
+  if (emptyStateIcon) {
+    emptyStateIcon.textContent = "";
+  }
+
+  if (emptyStateTitle) {
+    emptyStateTitle.textContent = title;
+  }
+
+  if (emptyStateDescription) {
+    emptyStateDescription.textContent = description;
+  }
+}
+
 function setLoading(isLoading) {
   document.body.classList.toggle("is-loading", isLoading);
   searchButton.disabled = isLoading;
@@ -1263,9 +1280,10 @@ async function runSearch(tags) {
   gallery.replaceChildren();
   setCount(0);
   emptyState.hidden = false;
-  emptyState.querySelector("p").textContent = "正在搜索...";
-  emptyState.querySelector("span").textContent =
-    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 目标 ${options.targetCount} 张`;
+  setEmptyStateCopy(
+    "正在搜索...",
+    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 目标 ${options.targetCount} 张`
+  );
   setStatus(
     `远程 tag：${remoteTags.join(" ")}；本地过滤：${localTags.join(" ") || "无"}；评级：All`
   );
@@ -1309,15 +1327,13 @@ async function runSearch(tags) {
         setStatus("搜索已停止");
         setInspectorMode("已停止");
         emptyState.hidden = false;
-        emptyState.querySelector("p").textContent = "搜索已停止。";
-        emptyState.querySelector("span").textContent = "可以调整 tag 后重新搜索。";
+        setEmptyStateCopy("搜索已停止。", "可以调整 tag 后重新搜索。");
       }
     } else {
       showNotice(error.message || "请求失败，请稍后重试。");
       setStatus("请求失败");
       setInspectorMode("请求失败");
-      emptyState.querySelector("p").textContent = "没有可显示的结果。";
-      emptyState.querySelector("span").textContent = "请检查网络或稍后重试。";
+      setEmptyStateCopy("没有可显示的结果。", "请检查网络或稍后重试。");
     }
   } finally {
     if (activeController === controller) {
@@ -1413,8 +1429,7 @@ clearButton.addEventListener("click", () => {
   setStatus("等待输入 tag");
   setInspectorMode("待检索");
   emptyState.hidden = false;
-  emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
-  emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
+  setEmptyStateCopy("输入 tag 后，图片会显示在这里。", "默认使用 All 评级和本地过滤。");
   tagInput.focus();
 });
 
@@ -1450,18 +1465,37 @@ clearHistoryButton.addEventListener("click", () => {
   renderHistory();
 });
 
-historyList.addEventListener("click", (event) => {
+function applyHistoryTag(tag) {
+  if (!tag) {
+    return;
+  }
+
+  addTags([tag]);
+  if (isFavoritesView) {
+    restoreSearchPosts();
+  }
+  tagInput.focus();
+}
+
+historyList.addEventListener("pointerdown", (event) => {
   const item = event.target.closest(".history-tag");
 
   if (!item) {
     return;
   }
 
-  addTags([item.dataset.tag || ""]);
-  if (isFavoritesView) {
-    restoreSearchPosts();
+  event.preventDefault();
+  applyHistoryTag(item.dataset.tag || "");
+});
+
+historyList.addEventListener("click", (event) => {
+  const item = event.target.closest(".history-tag");
+
+  if (!item || event.detail !== 0) {
+    return;
   }
-  tagInput.focus();
+
+  applyHistoryTag(item.dataset.tag || "");
 });
 
 document.querySelectorAll("[data-filter-trigger]").forEach((trigger) => {

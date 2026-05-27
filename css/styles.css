@@ -1317,7 +1317,6 @@ a:focus-visible {
     top: calc(100% + 58px);
   }
 
-  .count-control,
   .soft-button.subtle,
   .view-toggle {
     display: none;
@@ -1370,7 +1369,19 @@ a:focus-visible {
     padding: 18px 0;
   }
 
+  .empty-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .empty-copy {
+    order: 2;
+    border-bottom: 1px solid var(--line);
+    padding: 14px 16px;
+  }
+
   .ghost-grid {
+    order: 3;
     grid-template-columns: repeat(2, 1fr);
   }
 

@@ -9,7 +9,6 @@ const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
 const DEFAULT_TARGET_POSTS = 150;
-const DIALOG_TAG_PREVIEW_LIMIT = 14;
 
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
@@ -38,11 +37,15 @@ const dialogImage = document.querySelector("#dialogImage");
 const dialogRatingBadge = document.querySelector("#dialogRatingBadge");
 const dialogFavoriteButton = document.querySelector("#dialogFavoriteButton");
 const dialogScorePill = document.querySelector("#dialogScorePill");
+const dialogRatingText = document.querySelector("#dialogRatingText");
 const dialogTags = document.querySelector("#dialogTags");
 const dialogDimensions = document.querySelector("#dialogDimensions");
 const dialogSize = document.querySelector("#dialogSize");
 const dialogPostLink = document.querySelector("#dialogPostLink");
 const dialogFileLink = document.querySelector("#dialogFileLink");
+const dialogPosition = document.querySelector("#dialogPosition");
+const dialogPrevButton = document.querySelector("#dialogPrevButton");
+const dialogNextButton = document.querySelector("#dialogNextButton");
 const inspectorMode = document.querySelector("#inspectorMode");
 const inspectorResultCount = document.querySelector("#inspectorResultCount");
 const inspectorFavoriteCount = document.querySelector("#inspectorFavoriteCount");
@@ -58,13 +61,26 @@ let isFavoritesView = false;
 let activePreviewIndex = -1;
 let activePreviewPost = null;
 let previewScrollY = 0;
+let filterState = {
+  rating: "any",
+  aspect: "all",
+  size: "all",
+  sort: "relevance",
+};
 
 const RATING_LABELS = {
-  g: "GENERAL",
-  s: "SAFE",
-  q: "QUESTIONABLE",
-  e: "EXPLICIT",
-  any: "ALL",
+  g: "G 安全",
+  s: "S 敏感",
+  q: "Q 边缘",
+  e: "E 限制",
+  any: "全部",
+};
+
+const FILTER_LABELS = {
+  rating: RATING_LABELS,
+  aspect: { all: "全部", landscape: "横图", portrait: "竖图", square: "方图", wide: "宽屏" },
+  size: { all: "全部", large: "大图", wallpaper: "壁纸", absurdres: "超清" },
+  sort: { relevance: "默认", score: "得分最高", favorite: "收藏最多", resolution: "分辨率最大", newest: "最新" },
 };
 
 function normalizeTag(tag) {
@@ -202,6 +218,85 @@ function matchesPost(post, localTags, rating) {
 
   const postTags = collectAllTags(post);
   return localTags.every((tag) => postTags.has(normalizeTag(tag)));
+}
+
+function getAspectBucket(post) {
+  const ratio = getPostAspectRatio(post);
+
+  if (ratio >= 1.78) {
+    return "wide";
+  }
+
+  if (ratio > 1.1) {
+    return "landscape";
+  }
+
+  if (ratio < 0.9) {
+    return "portrait";
+  }
+
+  return "square";
+}
+
+function matchesSizeFilter(post) {
+  const size = getPostSize(post);
+
+  if (filterState.size === "all" || !size) {
+    return true;
+  }
+
+  if (filterState.size === "large") {
+    return Math.max(size.width, size.height) >= 2000;
+  }
+
+  if (filterState.size === "wallpaper") {
+    return size.width >= 1920 && size.height >= 1080;
+  }
+
+  if (filterState.size === "absurdres") {
+    return size.width * size.height >= 8000000;
+  }
+
+  return true;
+}
+
+function matchesClientFilters(post) {
+  const ratingOk = filterState.rating === "any" || post.rating === filterState.rating;
+  const aspectOk = filterState.aspect === "all" || getAspectBucket(post) === filterState.aspect;
+
+  return ratingOk && aspectOk && matchesSizeFilter(post);
+}
+
+function getFavoriteCount(post) {
+  return Number(post.fav_count ?? post.fav_count_total ?? post.score ?? 0);
+}
+
+function getResolution(post) {
+  const size = getPostSize(post);
+  return size ? size.width * size.height : 0;
+}
+
+function getFilteredPosts(posts) {
+  const filtered = posts.filter(matchesClientFilters);
+  const sorted = [...filtered];
+
+  if (filterState.sort === "score") {
+    sorted.sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.id || 0) - Number(a.id || 0));
+  }
+
+  if (filterState.sort === "favorite") {
+    sorted.sort((a, b) => getFavoriteCount(b) - getFavoriteCount(a) || Number(b.id || 0) - Number(a.id || 0));
+  }
+
+  if (filterState.sort === "resolution") {
+    sorted.sort((a, b) => getResolution(b) - getResolution(a) || Number(b.id || 0) - Number(a.id || 0));
+  }
+
+  if (filterState.sort === "newest") {
+    sorted.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  }
+
+  return sorted;
 }
 
 function deduplicatePosts(posts) {
@@ -407,32 +502,16 @@ function getPreviewTags(post) {
   return tags;
 }
 
-function renderDialogTags(post, { expanded = false } = {}) {
+function renderDialogTags(post) {
   const previewTags = getPreviewTags(post);
-  const visibleTags = expanded
-    ? previewTags
-    : previewTags.slice(0, DIALOG_TAG_PREVIEW_LIMIT);
-  const hiddenCount = Math.max(previewTags.length - visibleTags.length, 0);
   const fragment = document.createDocumentFragment();
 
-  visibleTags.forEach((tag) => {
+  previewTags.forEach((tag) => {
     const chip = document.createElement("span");
     chip.className = "dialog-tag-chip";
     chip.textContent = tag;
     fragment.append(chip);
   });
-
-  if (!expanded && hiddenCount > 0) {
-    const moreChip = document.createElement("button");
-    moreChip.type = "button";
-    moreChip.className = "dialog-tag-chip dialog-tag-more";
-    moreChip.textContent = `+ ${hiddenCount} 更多`;
-    moreChip.setAttribute("aria-label", `展开全部 ${previewTags.length} 个标签`);
-    moreChip.addEventListener("click", () => {
-      renderDialogTags(post, { expanded: true });
-    });
-    fragment.append(moreChip);
-  }
 
   if (previewTags.length === 0) {
     const empty = document.createElement("span");
@@ -471,6 +550,7 @@ function normalizeFavoritePost(item) {
     id,
     rating: String(item.rating || ""),
     score: Number.isFinite(Number(item.score)) ? Number(item.score) : 0,
+    fav_count: Number.isFinite(Number(item.fav_count)) ? Number(item.fav_count) : 0,
     image_width: numericField(item.image_width),
     image_height: numericField(item.image_height),
     file_size: numericField(item.file_size),
@@ -525,6 +605,7 @@ function createFavoriteSnapshot(post) {
     id: post.id,
     rating: post.rating,
     score: post.score,
+    fav_count: post.fav_count,
     image_width: size?.width,
     image_height: size?.height,
     file_size: post.file_size || post.media_asset?.file_size,
@@ -569,6 +650,11 @@ function updateFavoriteButton(button, postOrId) {
 function syncFavoriteButtons() {
   document.querySelectorAll(".favorite-button[data-favorite-post-id]").forEach((button) => {
     updateFavoriteButton(button);
+    const card = button.closest(".post-card");
+
+    if (card) {
+      card.classList.toggle("is-favorite", button.classList.contains("is-active"));
+    }
   });
 
   if (dialogFavoriteButton.dataset.favoritePostId) {
@@ -578,12 +664,9 @@ function syncFavoriteButtons() {
 
 function renderFavoriteSummary() {
   const count = favoritePosts.size;
-  const title = showFavoritesButton.querySelector("strong");
-
-  favoriteSummary.textContent =
-    count > 0 ? `${count.toLocaleString("zh-CN")} 张已收藏` : "暂无收藏";
-  title.textContent = isFavoritesView ? "返回搜索" : "查看收藏";
-  showFavoritesButton.disabled = count === 0 && !isFavoritesView;
+  favoriteSummary.textContent = count.toLocaleString("zh-CN");
+  showFavoritesButton.title = isFavoritesView ? "当前显示收藏" : "查看收藏";
+  showFavoritesButton.disabled = false;
   showFavoritesButton.classList.toggle("is-active", isFavoritesView);
   showFavoritesButton.setAttribute("aria-pressed", String(isFavoritesView));
   clearFavoritesButton.disabled = count === 0;
@@ -614,7 +697,18 @@ function toggleFavorite(post) {
   renderFavoriteSummary();
 
   if (isFavoritesView) {
-    showFavoritePosts();
+    const wasRemoved = !favoritePosts.has(key);
+    showFavoritePosts({ resetPage: false });
+
+    if (previewDialog.open && wasRemoved) {
+      if (allPosts.length === 0) {
+        previewDialog.close();
+        return;
+      }
+
+      activePreviewIndex = Math.max(0, Math.min(activePreviewIndex, allPosts.length - 1));
+      updatePreview(allPosts[activePreviewIndex], activePreviewIndex);
+    }
   } else {
     syncFavoriteButtons();
   }
@@ -749,18 +843,28 @@ function createPostCard(post, index) {
   const ratingBadge = node.querySelector(".rating-badge");
   const scoreLabel = node.querySelector(".score-label");
   const postId = node.querySelector(".post-id");
+  const postSize = node.querySelector(".post-size");
+  const favoriteCountLabel = node.querySelector(".favorite-count-label");
   const tags = node.querySelector(".post-tags");
   const postLink = node.querySelector(".post-link");
   const favoriteButton = node.querySelector(".favorite-button-card");
   const previewUrl = getPreviewUrl(post);
+  const size = getPostSize(post);
 
   node.dataset.postIndex = String(index);
   node.style.setProperty("--post-aspect-ratio", getPostAspectRatioValue(post));
+  node.classList.toggle("is-favorite", favoritePosts.has(getPostKey(post)));
   image.src = previewUrl;
   image.alt = `Danbooru post ${post.id}`;
   ratingBadge.textContent = formatRating(post.rating);
   ratingBadge.classList.add(`rating-${post.rating || "unknown"}`);
   scoreLabel.textContent = `score ${post.score ?? 0}`;
+  if (postSize) {
+    postSize.textContent = size ? `${size.width}x${size.height}` : "-";
+  }
+  if (favoriteCountLabel) {
+    favoriteCountLabel.textContent = `fav ${getFavoriteCount(post)}`;
+  }
   postId.textContent = `#${post.id}`;
   tags.textContent = getTagSummary(post) || `post ${post.id}`;
   postLink.href = `${DANBOORU_BASE_URL}/posts/${post.id}`;
@@ -822,17 +926,30 @@ function renderGallery() {
   }
 }
 
+function getCurrentSourcePosts() {
+  return isFavoritesView ? getFavoritePosts() : searchPostsCache;
+}
+
 function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
-  allPosts = posts;
+  const filteredPosts = getFilteredPosts(posts);
+
+  allPosts = filteredPosts;
   if (resetPage) {
     activePreviewIndex = -1;
   }
-  emptyState.hidden = posts.length > 0;
+  emptyState.hidden = filteredPosts.length > 0;
 
-  if (posts.length === 0) {
+  if (filteredPosts.length === 0) {
     if (showEmptyResult) {
-      emptyState.querySelector("p").textContent = "没有找到符合条件的图片。";
-      emptyState.querySelector("span").textContent = "可以减少本地过滤 tag 或增加图片数量。";
+      if (posts.length === 0) {
+        emptyState.querySelector("p").textContent = isFavoritesView ? "暂无收藏。" : "没有找到符合条件的图片。";
+        emptyState.querySelector("span").textContent = isFavoritesView
+          ? "回到搜索结果后点星标加入收藏。"
+          : "可以减少本地过滤 tag 或增加图片数量。";
+      } else {
+        emptyState.querySelector("p").textContent = isFavoritesView ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。";
+        emptyState.querySelector("span").textContent = "换一个级别、比例、尺寸或排序条件继续查看。";
+      }
     }
     renderGallery();
     setCount(0);
@@ -840,10 +957,10 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   }
 
   renderGallery();
-  setCount(posts.length);
+  setCount(filteredPosts.length, posts.length);
 }
 
-function showFavoritePosts() {
+function showFavoritePosts({ resetPage = true } = {}) {
   if (activeController) {
     activeController.abort();
     activeController = null;
@@ -852,19 +969,21 @@ function showFavoritePosts() {
 
   const favorites = getFavoritePosts();
   isFavoritesView = true;
-  activePreviewIndex = -1;
+  if (resetPage) {
+    activePreviewIndex = -1;
+  }
   hideNotice();
   setProgress(0);
   renderCurrentTags(["本地收藏"], 1);
-  renderPosts(favorites, { resetPage: true, showEmptyResult: false });
+  renderPosts(favorites, { resetPage, showEmptyResult: true });
 
   if (favorites.length === 0) {
     emptyState.hidden = false;
     emptyState.querySelector("p").textContent = "暂无收藏。";
-    emptyState.querySelector("span").textContent = "点击图片上的爱心后，会在这里汇总。";
+    emptyState.querySelector("span").textContent = "回到搜索结果后点星标加入收藏。";
     setStatus("暂无收藏");
   } else {
-    setStatus(`${favorites.length.toLocaleString("zh-CN")} 张收藏已显示`);
+    updateViewStatus({ force: true });
   }
 
   setInspectorMode("收藏视图");
@@ -881,7 +1000,7 @@ function restoreSearchPosts() {
   renderPosts(searchPostsCache, { resetPage: true, showEmptyResult: false });
 
   if (searchPostsCache.length > 0) {
-    setStatus(`${searchPostsCache.length.toLocaleString("zh-CN")} 张图片已显示`);
+    updateViewStatus({ force: true });
     setInspectorMode("结果浏览");
   } else {
     emptyState.hidden = false;
@@ -917,8 +1036,14 @@ function updatePreview(post, index) {
   dialogImage.alt = `Danbooru post ${post.id}`;
   dialogRatingBadge.className = `dialog-rating-pill rating-${post.rating || "unknown"}`;
   dialogRatingBadge.textContent = formatRating(post.rating);
+  if (dialogRatingText) {
+    dialogRatingText.textContent = post.rating || "-";
+  }
+  if (dialogPosition) {
+    dialogPosition.textContent = `${index + 1} / ${allPosts.length || 1}${isFavoritesView ? " · 收藏" : ""}`;
+  }
   updateFavoriteButton(dialogFavoriteButton, post);
-  dialogScorePill.textContent = `${post.score ?? 0} 分`;
+  dialogScorePill.textContent = `${post.score ?? 0}`;
   renderDialogTags(post);
   dialogDimensions.textContent = getDimensions(post);
   dialogSize.textContent = formatBytes(post.file_size || post.media_asset?.file_size);
@@ -936,11 +1061,21 @@ function openPreview(index) {
   previewScrollY = window.scrollY;
   activePreviewIndex = index;
   updatePreview(post, index);
+  document.body.classList.add("dialog-open");
 
   if (!previewDialog.open) {
     previewDialog.showModal();
     previewDialog.focus({ preventScroll: true });
   }
+}
+
+function movePreview(delta) {
+  if (!previewDialog.open || allPosts.length === 0) {
+    return;
+  }
+
+  activePreviewIndex = (activePreviewIndex + delta + allPosts.length) % allPosts.length;
+  updatePreview(allPosts[activePreviewIndex], activePreviewIndex);
 }
 
 function setStatus(message) {
@@ -958,12 +1093,69 @@ function setProgress(percent) {
   progressBar.style.width = `${safePercent}%`;
 }
 
-function setCount(count) {
-  resultCount.textContent = formatCount(count);
+function setCount(count, sourceCount = count) {
+  const visible = Number(count || 0);
+  const total = Number(sourceCount || 0);
+
+  resultCount.textContent = total > 0 && visible !== total
+    ? `${visible.toLocaleString("zh-CN")} / ${total.toLocaleString("zh-CN")} 张`
+    : formatCount(visible);
 
   if (inspectorResultCount) {
-    inspectorResultCount.textContent = Number(count || 0).toLocaleString("zh-CN");
+    inspectorResultCount.textContent = visible.toLocaleString("zh-CN");
   }
+}
+
+function updateFilterLabels() {
+  const labelMap = [
+    ["ratingLabel", "rating"],
+    ["aspectLabel", "aspect"],
+    ["sizeLabel", "size"],
+    ["sortLabel", "sort"],
+  ];
+
+  labelMap.forEach(([id, key]) => {
+    const node = document.querySelector(`#${id}`);
+    if (node) {
+      node.textContent = FILTER_LABELS[key][filterState[key]];
+    }
+  });
+
+  document.querySelectorAll(".filter-option").forEach((option) => {
+    option.classList.toggle("active", filterState[option.dataset.filter] === option.dataset.value);
+  });
+}
+
+function updateViewStatus({ force = false } = {}) {
+  const sourcePosts = getCurrentSourcePosts();
+  const visibleCount = allPosts.length;
+  const sourceCount = sourcePosts.length;
+
+  setCount(visibleCount, sourceCount);
+
+  if (!force && document.body.classList.contains("is-loading")) {
+    return;
+  }
+
+  if (isFavoritesView) {
+    setStatus(sourceCount > 0 ? `收藏 · ${visibleCount} / ${sourceCount} 张` : "暂无收藏");
+    setInspectorMode("收藏视图");
+    return;
+  }
+
+  if (sourceCount > 0) {
+    setStatus(`筛选完成 · ${visibleCount} / ${sourceCount} 张`);
+    setInspectorMode("结果浏览");
+  } else {
+    setStatus("等待输入 tag");
+    setInspectorMode("待检索");
+  }
+}
+
+function refreshCurrentView({ resetPage = false, forceStatus = false } = {}) {
+  renderPosts(getCurrentSourcePosts(), { resetPage, showEmptyResult: true });
+  updateViewStatus({ force: forceStatus });
+  syncFavoriteButtons();
 }
 
 function renderInspectorTags(tags = []) {
@@ -1089,7 +1281,7 @@ async function runSearch(tags) {
 
       if (partialPosts.length > 0) {
         setStatus(
-          `已显示 ${partialPosts.length.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
+          `已显示 ${allPosts.length.toLocaleString("zh-CN")} / ${partialPosts.length.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
         );
       }
     });
@@ -1100,8 +1292,7 @@ async function runSearch(tags) {
 
     searchPostsCache = posts;
     renderPosts(posts, { resetPage: allPosts.length === 0 });
-    setStatus(`${posts.length.toLocaleString("zh-CN")} 张图片已显示`);
-    setInspectorMode("结果浏览");
+    updateViewStatus({ force: true });
     setProgress(100);
     saveHistory(tags);
   } catch (error) {
@@ -1176,6 +1367,16 @@ tagInput.addEventListener("keydown", (event) => {
     selectedTags = selectedTags.slice(0, -1);
     renderSelectedTags();
     renderCurrentTags(getPendingTags(), getOptions().maxRemoteTags);
+  }
+
+  if (previewDialog.open && event.key === "ArrowLeft") {
+    event.preventDefault();
+    movePreview(-1);
+  }
+
+  if (previewDialog.open && event.key === "ArrowRight") {
+    event.preventDefault();
+    movePreview(1);
   }
 });
 
@@ -1257,7 +1458,46 @@ historyList.addEventListener("click", (event) => {
   }
 
   addTags([item.dataset.tag || ""]);
+  if (isFavoritesView) {
+    restoreSearchPosts();
+  }
   tagInput.focus();
+});
+
+document.querySelectorAll("[data-filter-trigger]").forEach((trigger) => {
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const control = trigger.closest(".filter-control");
+
+    document.querySelectorAll(".filter-control.open").forEach((item) => {
+      if (item !== control) {
+        item.classList.remove("open");
+      }
+    });
+
+    control.classList.toggle("open");
+  });
+});
+
+document.querySelectorAll(".filter-option").forEach((option) => {
+  option.addEventListener("click", () => {
+    const filterName = option.dataset.filter;
+
+    if (!filterName) {
+      return;
+    }
+
+    filterState[filterName] = option.dataset.value;
+    option.closest(".filter-control")?.classList.remove("open");
+    updateFilterLabels();
+    refreshCurrentView({ resetPage: true, forceStatus: true });
+  });
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".filter-control")) {
+    document.querySelectorAll(".filter-control.open").forEach((item) => item.classList.remove("open"));
+  }
 });
 
 document.querySelectorAll(".view-button").forEach((button) => {
@@ -1270,8 +1510,12 @@ document.querySelectorAll(".view-button").forEach((button) => {
   });
 });
 
-dialogImage.addEventListener("click", () => {
-  previewDialog.close();
+dialogPrevButton?.addEventListener("click", () => {
+  movePreview(-1);
+});
+
+dialogNextButton?.addEventListener("click", () => {
+  movePreview(1);
 });
 
 dialogFavoriteButton.addEventListener("click", () => {
@@ -1288,6 +1532,7 @@ closeDialogButton.addEventListener("click", () => {
 });
 
 previewDialog.addEventListener("close", () => {
+  document.body.classList.remove("dialog-open");
   dialogImage.removeAttribute("src");
   dialogFavoriteButton.removeAttribute("data-favorite-post-id");
   activePreviewPost = null;
@@ -1297,6 +1542,22 @@ previewDialog.addEventListener("close", () => {
   });
 });
 
+window.addEventListener("keydown", (event) => {
+  if (!previewDialog.open) {
+    return;
+  }
+
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    movePreview(-1);
+  }
+
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    movePreview(1);
+  }
+});
+
 if (typeof mobileGalleryQuery.addEventListener === "function") {
   mobileGalleryQuery.addEventListener("change", renderGallery);
 } else {
@@ -1304,6 +1565,7 @@ if (typeof mobileGalleryQuery.addEventListener === "function") {
 }
 
 favoritePosts = readFavorites();
+updateFilterLabels();
 renderFavoriteSummary();
 renderHistory();
 renderSelectedTags();

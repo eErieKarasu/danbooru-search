@@ -6,100 +6,60 @@
     <title>danbooru-search</title>
     <meta
       name="description"
-      content="匿名 Danbooru 视觉检索工作台，支持多 tag 输入、本地过滤、收藏和图片预览。"
+      content="匿名 Danbooru 图片筛选与整理工作流，支持多 tag 输入、本地筛选、收藏和图片审阅。"
     >
     <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260521">
     <meta name="apple-mobile-web-app-title" content="danbooru-search">
-    <link rel="stylesheet" href="css/styles.css?v=20260526-od-redesign-pro">
+    <link rel="stylesheet" href="css/styles.css?v=20260527-workflow">
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar" aria-labelledby="appTitle">
-        <div class="topbar-title">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <div>
-            <p class="eyebrow">Anonymous visual search</p>
-            <h1 id="appTitle">danbooru-search</h1>
+    <div class="app-shell" id="appShell">
+      <form class="command-bar" id="searchForm" aria-label="tag command bar">
+        <div class="brand" aria-labelledby="appTitle">
+          <span class="brand-accent">danbooru</span><span id="appTitle">-search</span>
+        </div>
+
+        <section class="search-shell" id="tagComposer" aria-label="tag search">
+          <span class="search-glyph" aria-hidden="true"></span>
+          <div class="query-row">
+            <input
+              id="tagInput"
+              name="tags"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="tag search"
+              aria-label="tag search"
+            >
+            <div class="selected-tags" id="selectedTags"></div>
           </div>
-        </div>
-        <div class="topbar-status" aria-label="工作台状态">
-          <span><b>匿名</b>无需登录</span>
-          <span><b>本地</b>收藏缓存</span>
-          <span><b>All</b>默认评级</span>
-        </div>
-      </header>
+          <button class="add-tag-button" id="clearButton" type="button" title="清空当前 tag" aria-label="清空当前 tag">×</button>
 
-      <div class="workspace">
-      <form class="sidebar" id="searchForm" aria-label="搜索控制台">
-        <header class="brand">
-          <p class="eyebrow">Query console</p>
-          <span class="brand-title">检索控制台</span>
-          <span class="brand-subtitle">前 2 个 tag 远程检索，其余 tag 本地过滤。</span>
-        </header>
-
-        <div class="sidebar-scroll">
-          <section class="search-section" aria-labelledby="searchTitle">
-            <h2 id="searchTitle">搜索</h2>
-            <div class="tag-composer" id="tagComposer">
-              <div class="selected-tags" id="selectedTags"></div>
-              <input
-                id="tagInput"
-                name="tags"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="输入 tag 后按回车添加"
-              >
-              <button class="composer-search" id="searchButton" type="submit" aria-label="搜索">
-                <span class="button-icon search-icon" aria-hidden="true"></span>
-              </button>
-            </div>
-            <p class="field-hint">支持同时输入多个 tag，用空格或回车分隔</p>
-            <div class="search-controls">
-              <label class="control search-count-control">
-                <span>图片数量</span>
-                <input id="countInput" type="number" min="1" step="1" value="150">
-              </label>
-              <button class="ghost-button" id="clearButton" type="button">清空当前</button>
-            </div>
-          </section>
-
-          <section class="favorites-section" aria-labelledby="favoritesTitle">
-            <div class="section-heading">
-              <div class="heading-title">
-                <h2 id="favoritesTitle">收藏</h2>
-              </div>
-              <button class="text-button" id="clearFavoritesButton" type="button">清空</button>
-            </div>
-            <button class="favorite-view-button" id="showFavoritesButton" type="button" aria-pressed="false">
-              <span class="favorite-view-icon heart-icon" aria-hidden="true"></span>
-              <span class="favorite-view-copy">
-                <strong>查看收藏</strong>
-                <span id="favoriteSummary">暂无收藏</span>
-              </span>
-            </button>
-          </section>
-
-          <section class="history-section" aria-labelledby="historyTitle">
-            <div class="section-heading">
-              <div class="heading-title">
-                <h2 id="historyTitle">历史 Tag</h2>
-              </div>
-              <button class="text-button" id="clearHistoryButton" type="button">清空</button>
+          <div class="suggestions" aria-label="最近 tag">
+            <div class="suggestion-title">
+              <span>recent tag</span>
+              <button class="clear-history-button" id="clearHistoryButton" type="button">清空</button>
             </div>
             <div class="history-list" id="historyList"></div>
-          </section>
-        </div>
-      </form>
-
-      <section class="results-shell" aria-labelledby="resultsTitle">
-        <header class="results-header">
-          <div>
-            <p class="eyebrow">Results</p>
-            <h2 id="resultsTitle">搜索结果</h2>
-            <p class="result-summary" id="statusText">等待输入 tag</p>
           </div>
+        </section>
+
+        <nav class="command-actions" aria-label="搜索动作">
+          <label class="count-control" title="本次最多加载图片数">
+            <span>数量</span>
+            <input id="countInput" type="number" min="1" step="1" value="150">
+          </label>
+          <button class="solid-button" id="searchButton" type="submit" title="搜索">
+            <span class="button-icon search-icon" aria-hidden="true"></span>
+            <span>搜索</span>
+          </button>
+          <button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button>
+          <button class="soft-button" id="showFavoritesButton" type="button" aria-pressed="false">
+            <span>收藏</span>
+            <span class="badge" id="favoriteSummary">0</span>
+          </button>
+          <button class="soft-button subtle" id="clearFavoritesButton" type="button">清空收藏</button>
           <div class="view-toggle" aria-label="视图切换">
             <button class="view-button is-active" type="button" aria-label="网格视图">
               <span class="grid-icon" aria-hidden="true"></span>
@@ -108,17 +68,67 @@
               <span class="list-icon" aria-hidden="true"></span>
             </button>
           </div>
-        </header>
+        </nav>
+      </form>
 
-        <section class="query-strip" aria-live="polite">
-          <div class="active-tags" id="currentTags">
-            <span class="tag-chip is-muted">等待输入</span>
+      <main class="gallery-workspace">
+        <section class="filter-rail" aria-label="结果筛选">
+          <div class="filters">
+            <div class="filter-control">
+              <button class="filter-trigger" data-filter-trigger="rating" type="button" title="Danbooru 内容分级">
+                级别: <strong id="ratingLabel">全部</strong>
+              </button>
+              <div class="filter-menu">
+                <button class="filter-option" data-filter="rating" data-value="any" type="button"><strong>全部</strong><span>不限制 rating</span></button>
+                <button class="filter-option" data-filter="rating" data-value="g" type="button"><strong>G 安全</strong><span>rating:g</span></button>
+                <button class="filter-option" data-filter="rating" data-value="s" type="button"><strong>S 敏感</strong><span>rating:s</span></button>
+                <button class="filter-option" data-filter="rating" data-value="q" type="button"><strong>Q 边缘</strong><span>rating:q</span></button>
+                <button class="filter-option" data-filter="rating" data-value="e" type="button"><strong>E 限制</strong><span>rating:e</span></button>
+              </div>
+            </div>
+
+            <div class="filter-control">
+              <button class="filter-trigger" data-filter-trigger="aspect" type="button" title="按图片宽高比例筛选">
+                比例: <strong id="aspectLabel">全部</strong>
+              </button>
+              <div class="filter-menu">
+                <button class="filter-option" data-filter="aspect" data-value="all" type="button"><strong>全部</strong><span>横图、竖图、方图都显示</span></button>
+                <button class="filter-option" data-filter="aspect" data-value="landscape" type="button"><strong>横图</strong><span>宽度大于高度</span></button>
+                <button class="filter-option" data-filter="aspect" data-value="portrait" type="button"><strong>竖图</strong><span>高度大于宽度</span></button>
+                <button class="filter-option" data-filter="aspect" data-value="square" type="button"><strong>方图</strong><span>宽高接近 1:1</span></button>
+                <button class="filter-option" data-filter="aspect" data-value="wide" type="button"><strong>宽屏</strong><span>比例大于 16:9</span></button>
+              </div>
+            </div>
+
+            <div class="filter-control">
+              <button class="filter-trigger" data-filter-trigger="size" type="button" title="按分辨率和像素量筛选">
+                尺寸: <strong id="sizeLabel">全部</strong>
+              </button>
+              <div class="filter-menu">
+                <button class="filter-option" data-filter="size" data-value="all" type="button"><strong>全部</strong><span>不限制分辨率</span></button>
+                <button class="filter-option" data-filter="size" data-value="large" type="button"><strong>大图</strong><span>长边 >= 2000 px</span></button>
+                <button class="filter-option" data-filter="size" data-value="wallpaper" type="button"><strong>壁纸</strong><span>至少 1920 x 1080</span></button>
+                <button class="filter-option" data-filter="size" data-value="absurdres" type="button"><strong>超清</strong><span>总像素 >= 8 MP</span></button>
+              </div>
+            </div>
+
+            <div class="filter-control">
+              <button class="filter-trigger" data-filter-trigger="sort" type="button" title="决定网格里的扫图顺序">
+                排序: <strong id="sortLabel">默认</strong>
+              </button>
+              <div class="filter-menu">
+                <button class="filter-option" data-filter="sort" data-value="relevance" type="button"><strong>默认</strong><span>保持返回顺序</span></button>
+                <button class="filter-option" data-filter="sort" data-value="score" type="button"><strong>得分最高</strong><span>按 score 降序</span></button>
+                <button class="filter-option" data-filter="sort" data-value="favorite" type="button"><strong>收藏最多</strong><span>按 fav_count 降序</span></button>
+                <button class="filter-option" data-filter="sort" data-value="resolution" type="button"><strong>分辨率最大</strong><span>按总像素降序</span></button>
+                <button class="filter-option" data-filter="sort" data-value="newest" type="button"><strong>最新</strong><span>按 post id 降序</span></button>
+              </div>
+            </div>
           </div>
-          <div class="result-side">
-            <button class="stop-search-button" id="stopSearchButton" type="button" hidden>
-              停止
-            </button>
-            <div class="result-count" id="resultCount">0 张图片</div>
+
+          <div class="status-hud">
+            <div class="hud"><span class="hud-dot" aria-hidden="true"></span><span id="statusText">等待输入 tag</span></div>
+            <span class="result-count" id="resultCount">0 张图片</span>
           </div>
         </section>
 
@@ -128,125 +138,81 @@
 
         <section class="notice" id="noticeBox" hidden></section>
 
+        <section class="active-query" aria-live="polite">
+          <div class="active-tags" id="currentTags">
+            <span class="tag-chip is-muted">等待输入</span>
+          </div>
+        </section>
+
         <section class="empty-state" id="emptyState">
-          <div class="empty-visual" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <div>
-            <p>输入 tag 后，图片会显示在这里。</p>
-            <span>默认使用 All 评级和本地过滤。</span>
+          <div class="empty-panel">
+            <div class="empty-search-line">
+              <span class="search-glyph" aria-hidden="true"></span>
+              <span>输入 tag 后开始检索</span>
+            </div>
+            <div class="ghost-grid" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="empty-copy">
+              <p>等待检索的图库画布</p>
+              <span>历史 tag 会在搜索框聚焦时出现；收藏会作为同级图库展示。</span>
+            </div>
           </div>
         </section>
 
-        <section class="gallery" id="gallery" aria-label="搜索结果"></section>
-      </section>
+        <section class="gallery" id="gallery" aria-label="图片结果"></section>
+      </main>
 
-      <aside class="inspector" aria-label="扫描摘要">
-        <section class="panel inspector-panel">
-          <div class="section-heading">
-            <div class="heading-title">
-              <p class="eyebrow">Scan</p>
-              <h2>扫描摘要</h2>
-            </div>
-          </div>
-          <dl class="metric-list">
-            <div>
-              <dt>当前模式</dt>
-              <dd id="inspectorMode">待检索</dd>
-            </div>
-            <div>
-              <dt>结果数量</dt>
-              <dd id="inspectorResultCount">0</dd>
-            </div>
-            <div>
-              <dt>收藏数量</dt>
-              <dd id="inspectorFavoriteCount">0</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="panel tag-panel">
-          <div class="section-heading">
-            <div class="heading-title">
-              <p class="eyebrow">Active tags</p>
-              <h2>当前标签</h2>
-            </div>
-          </div>
-          <div class="inspector-tags" id="inspectorTags">
-            <span>等待 tag</span>
-          </div>
-        </section>
-
-        <section class="panel note-panel">
-          <p class="eyebrow">Workflow</p>
-          <p class="workflow-note">先用少量远程 tag 控制请求范围，再用本地过滤精修结果。收藏会留在浏览器本地。</p>
-        </section>
-      </aside>
+      <div class="sr-only" aria-hidden="true">
+        <span id="inspectorMode">待检索</span>
+        <span id="inspectorResultCount">0</span>
+        <span id="inspectorFavoriteCount">0</span>
+        <span id="inspectorTags"></span>
       </div>
-    </main>
+    </div>
 
     <dialog class="preview-dialog" id="previewDialog" tabindex="-1">
       <div class="dialog-surface">
-        <div class="dialog-toolbar">
-          <div class="dialog-heading">
-            <p class="status-label">预览</p>
-            <div class="dialog-title-row">
-              <h2 id="dialogTitle">Post</h2>
-              <span class="dialog-rating-pill" id="dialogRatingBadge">GENERAL</span>
-            </div>
+        <section class="stage">
+          <div class="dialog-toolbar">
+            <span id="dialogPosition">0 / 0</span>
+            <button class="icon-button close-button" id="closeDialogButton" type="button" aria-label="关闭预览">Esc 关闭</button>
           </div>
-          <div class="dialog-actions">
-            <button class="favorite-button favorite-button-dialog" id="dialogFavoriteButton" type="button" aria-label="收藏当前图片" aria-pressed="false">
-              <span class="heart-icon" aria-hidden="true"></span>
-            </button>
-            <span class="score-pill" id="dialogScorePill">0 分</span>
-            <button class="icon-button" id="closeDialogButton" type="button" aria-label="关闭预览">
-              ×
-            </button>
-          </div>
-        </div>
-        <div class="dialog-content">
-          <div class="dialog-media" id="dialogMedia">
+          <div class="stage-body" id="dialogMedia">
+            <button class="nav-arrow prev" id="dialogPrevButton" type="button" title="上一张" aria-label="上一张">‹</button>
             <img id="dialogImage" alt="">
+            <button class="nav-arrow next" id="dialogNextButton" type="button" title="下一张" aria-label="下一张">›</button>
           </div>
-          <aside class="dialog-meta" id="dialogMeta">
-            <section class="dialog-section" aria-labelledby="dialogTagsTitle">
-              <h3 id="dialogTagsTitle">标签</h3>
-              <div class="dialog-tags" id="dialogTags"></div>
-            </section>
-            <div class="dialog-divider" aria-hidden="true"></div>
-            <div class="dialog-stats" aria-label="图片信息">
-              <div class="info-row">
-                <span class="info-icon image-info-icon" aria-hidden="true"></span>
-                <span class="info-copy">
-                  <span>尺寸</span>
-                  <strong id="dialogDimensions">-</strong>
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-icon file-info-icon" aria-hidden="true"></span>
-                <span class="info-copy">
-                  <span>文件大小</span>
-                  <strong id="dialogSize">-</strong>
-                </span>
-              </div>
+        </section>
+
+        <aside class="dialog-meta" id="dialogMeta">
+          <div class="meta-head">
+            <div>
+              <p class="status-label">Inspection</p>
+              <h2 id="dialogTitle">Post</h2>
             </div>
-            <div class="dialog-divider" aria-hidden="true"></div>
-            <div class="dialog-links">
-              <a class="dialog-link dialog-link-secondary" id="dialogPostLink" target="_blank" rel="noopener noreferrer">
-                <span class="external-link-icon" aria-hidden="true"></span>
-                打开 Danbooru
-              </a>
-              <a class="dialog-link dialog-link-primary" id="dialogFileLink" target="_blank" rel="noopener noreferrer">
-                <span class="image-link-icon" aria-hidden="true"></span>
-                打开图片
-              </a>
+            <div class="dialog-actions">
+              <button class="favorite-button favorite-button-dialog" id="dialogFavoriteButton" type="button" aria-label="收藏当前图片" aria-pressed="false">
+                <span class="heart-icon" aria-hidden="true"></span>
+              </button>
+              <span class="dialog-rating-pill" id="dialogRatingBadge">ALL</span>
             </div>
-          </aside>
-        </div>
+          </div>
+
+          <dl class="meta-list">
+            <dt>评分</dt><dd id="dialogRatingText">-</dd>
+            <dt>尺寸</dt><dd id="dialogDimensions">-</dd>
+            <dt>文件大小</dt><dd id="dialogSize">-</dd>
+            <dt>得分</dt><dd id="dialogScorePill">0</dd>
+            <dt>标签</dt><dd class="tag-cell" id="dialogTags"></dd>
+          </dl>
+
+          <div class="dialog-links">
+            <a class="dialog-link dialog-link-primary" id="dialogFileLink" target="_blank" rel="noopener noreferrer">打开图片</a>
+            <a class="dialog-link dialog-link-secondary" id="dialogPostLink" target="_blank" rel="noopener noreferrer">打开 Danbooru</a>
+          </div>
+        </aside>
       </div>
     </dialog>
 
@@ -254,22 +220,21 @@
       <article class="post-card">
         <button class="image-button" type="button">
           <img loading="lazy" decoding="async" alt="">
+          <span class="save-mark" aria-hidden="true">✓</span>
           <span class="post-overlay">
+            <span class="post-line"><strong class="post-id"></strong><span class="post-size"></span></span>
+            <span class="post-line"><span class="score-label"></span><span class="favorite-count-label"></span></span>
             <span class="rating-badge"></span>
-            <span class="score-label"></span>
-            <span class="post-id"></span>
             <span class="post-tags"></span>
           </span>
         </button>
-        <a class="post-link" target="_blank" rel="noopener noreferrer" aria-label="打开 Danbooru">
-          ↗
-        </a>
+        <a class="post-link" target="_blank" rel="noopener noreferrer" aria-label="打开 Danbooru">↗</a>
         <button class="favorite-button favorite-button-card" type="button" aria-label="收藏图片" aria-pressed="false">
           <span class="heart-icon" aria-hidden="true"></span>
         </button>
       </article>
     </template>
 
-    <script src="js/app.js?v=20260526-od-redesign-pro"></script>
+    <script src="js/app.js?v=20260527-workflow"></script>
   </body>
 </html>

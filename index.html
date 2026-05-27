@@ -6,19 +6,36 @@
     <title>danbooru-search</title>
     <meta
       name="description"
-      content="匿名搜索 Danbooru posts，支持多 tag 输入、本地过滤和图片预览。"
+      content="匿名 Danbooru 视觉检索工作台，支持多 tag 输入、本地过滤、收藏和图片预览。"
     >
     <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260521">
     <meta name="apple-mobile-web-app-title" content="danbooru-search">
-    <link rel="stylesheet" href="css/styles.css?v=20260522-favorites">
+    <link rel="stylesheet" href="css/styles.css?v=20260526-od-redesign-pro">
   </head>
   <body>
     <main class="app-shell">
-      <form class="sidebar" id="searchForm" aria-labelledby="appTitle">
-        <header class="brand">
+      <header class="topbar" aria-labelledby="appTitle">
+        <div class="topbar-title">
           <span class="brand-mark" aria-hidden="true"></span>
-          <span id="appTitle" class="brand-title">danbooru-search</span>
+          <div>
+            <p class="eyebrow">Anonymous visual search</p>
+            <h1 id="appTitle">danbooru-search</h1>
+          </div>
+        </div>
+        <div class="topbar-status" aria-label="工作台状态">
+          <span><b>匿名</b>无需登录</span>
+          <span><b>本地</b>收藏缓存</span>
+          <span><b>All</b>默认评级</span>
+        </div>
+      </header>
+
+      <div class="workspace">
+      <form class="sidebar" id="searchForm" aria-label="搜索控制台">
+        <header class="brand">
+          <p class="eyebrow">Query console</p>
+          <span class="brand-title">检索控制台</span>
+          <span class="brand-subtitle">前 2 个 tag 远程检索，其余 tag 本地过滤。</span>
         </header>
 
         <div class="sidebar-scroll">
@@ -79,7 +96,8 @@
       <section class="results-shell" aria-labelledby="resultsTitle">
         <header class="results-header">
           <div>
-            <h1 id="resultsTitle">搜索结果</h1>
+            <p class="eyebrow">Results</p>
+            <h2 id="resultsTitle">搜索结果</h2>
             <p class="result-summary" id="statusText">等待输入 tag</p>
           </div>
           <div class="view-toggle" aria-label="视图切换">
@@ -111,6 +129,12 @@
         <section class="notice" id="noticeBox" hidden></section>
 
         <section class="empty-state" id="emptyState">
+          <div class="empty-visual" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
           <div>
             <p>输入 tag 后，图片会显示在这里。</p>
             <span>默认使用 All 评级和本地过滤。</span>
@@ -119,6 +143,49 @@
 
         <section class="gallery" id="gallery" aria-label="搜索结果"></section>
       </section>
+
+      <aside class="inspector" aria-label="扫描摘要">
+        <section class="panel inspector-panel">
+          <div class="section-heading">
+            <div class="heading-title">
+              <p class="eyebrow">Scan</p>
+              <h2>扫描摘要</h2>
+            </div>
+          </div>
+          <dl class="metric-list">
+            <div>
+              <dt>当前模式</dt>
+              <dd id="inspectorMode">待检索</dd>
+            </div>
+            <div>
+              <dt>结果数量</dt>
+              <dd id="inspectorResultCount">0</dd>
+            </div>
+            <div>
+              <dt>收藏数量</dt>
+              <dd id="inspectorFavoriteCount">0</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel tag-panel">
+          <div class="section-heading">
+            <div class="heading-title">
+              <p class="eyebrow">Active tags</p>
+              <h2>当前标签</h2>
+            </div>
+          </div>
+          <div class="inspector-tags" id="inspectorTags">
+            <span>等待 tag</span>
+          </div>
+        </section>
+
+        <section class="panel note-panel">
+          <p class="eyebrow">Workflow</p>
+          <p class="workflow-note">先用少量远程 tag 控制请求范围，再用本地过滤精修结果。收藏会留在浏览器本地。</p>
+        </section>
+      </aside>
+      </div>
     </main>
 
     <dialog class="preview-dialog" id="previewDialog" tabindex="-1">
@@ -203,6 +270,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260522-favorites"></script>
+    <script src="js/app.js?v=20260526-od-redesign-pro"></script>
   </body>
 </html>

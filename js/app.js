@@ -43,6 +43,10 @@ const dialogDimensions = document.querySelector("#dialogDimensions");
 const dialogSize = document.querySelector("#dialogSize");
 const dialogPostLink = document.querySelector("#dialogPostLink");
 const dialogFileLink = document.querySelector("#dialogFileLink");
+const inspectorMode = document.querySelector("#inspectorMode");
+const inspectorResultCount = document.querySelector("#inspectorResultCount");
+const inspectorFavoriteCount = document.querySelector("#inspectorFavoriteCount");
+const inspectorTags = document.querySelector("#inspectorTags");
 const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 
 let activeController = null;
@@ -583,6 +587,10 @@ function renderFavoriteSummary() {
   showFavoritesButton.classList.toggle("is-active", isFavoritesView);
   showFavoritesButton.setAttribute("aria-pressed", String(isFavoritesView));
   clearFavoritesButton.disabled = count === 0;
+
+  if (inspectorFavoriteCount) {
+    inspectorFavoriteCount.textContent = count.toLocaleString("zh-CN");
+  }
 }
 
 function toggleFavorite(post) {
@@ -859,6 +867,7 @@ function showFavoritePosts() {
     setStatus(`${favorites.length.toLocaleString("zh-CN")} 张收藏已显示`);
   }
 
+  setInspectorMode("收藏视图");
   renderFavoriteSummary();
   syncFavoriteButtons();
 }
@@ -873,11 +882,13 @@ function restoreSearchPosts() {
 
   if (searchPostsCache.length > 0) {
     setStatus(`${searchPostsCache.length.toLocaleString("zh-CN")} 张图片已显示`);
+    setInspectorMode("结果浏览");
   } else {
     emptyState.hidden = false;
     emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
     emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
     setStatus("等待输入 tag");
+    setInspectorMode("待检索");
   }
 
   renderFavoriteSummary();
@@ -936,6 +947,12 @@ function setStatus(message) {
   statusText.textContent = message;
 }
 
+function setInspectorMode(message) {
+  if (inspectorMode) {
+    inspectorMode.textContent = message;
+  }
+}
+
 function setProgress(percent) {
   const safePercent = Math.min(Math.max(Number(percent) || 0, 0), 100);
   progressBar.style.width = `${safePercent}%`;
@@ -943,10 +960,37 @@ function setProgress(percent) {
 
 function setCount(count) {
   resultCount.textContent = formatCount(count);
+
+  if (inspectorResultCount) {
+    inspectorResultCount.textContent = Number(count || 0).toLocaleString("zh-CN");
+  }
+}
+
+function renderInspectorTags(tags = []) {
+  if (!inspectorTags) {
+    return;
+  }
+
+  inspectorTags.replaceChildren();
+
+  if (tags.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "is-muted";
+    empty.textContent = "等待 tag";
+    inspectorTags.append(empty);
+    return;
+  }
+
+  tags.slice(0, 10).forEach((tag) => {
+    const item = document.createElement("span");
+    item.textContent = tag;
+    inspectorTags.append(item);
+  });
 }
 
 function renderCurrentTags(tags = [], maxRemoteTags = 2) {
   currentTags.replaceChildren();
+  renderInspectorTags(tags);
 
   if (tags.length === 0) {
     const placeholder = document.createElement("span");
@@ -1018,6 +1062,7 @@ async function runSearch(tags) {
   activeController = controller;
   hideNotice();
   setLoading(true);
+  setInspectorMode("检索中");
   setCount(0);
   setProgress(0);
   renderCurrentTags(tags, options.maxRemoteTags);
@@ -1056,6 +1101,7 @@ async function runSearch(tags) {
     searchPostsCache = posts;
     renderPosts(posts, { resetPage: allPosts.length === 0 });
     setStatus(`${posts.length.toLocaleString("zh-CN")} 张图片已显示`);
+    setInspectorMode("结果浏览");
     setProgress(100);
     saveHistory(tags);
   } catch (error) {
@@ -1070,6 +1116,7 @@ async function runSearch(tags) {
         setStatus(`搜索已停止，已保留 ${retainedCount.toLocaleString("zh-CN")} 张图片`);
       } else {
         setStatus("搜索已停止");
+        setInspectorMode("已停止");
         emptyState.hidden = false;
         emptyState.querySelector("p").textContent = "搜索已停止。";
         emptyState.querySelector("span").textContent = "可以调整 tag 后重新搜索。";
@@ -1077,6 +1124,7 @@ async function runSearch(tags) {
     } else {
       showNotice(error.message || "请求失败，请稍后重试。");
       setStatus("请求失败");
+      setInspectorMode("请求失败");
       emptyState.querySelector("p").textContent = "没有可显示的结果。";
       emptyState.querySelector("span").textContent = "请检查网络或稍后重试。";
     }
@@ -1162,6 +1210,7 @@ clearButton.addEventListener("click", () => {
   renderFavoriteSummary();
   renderCurrentTags();
   setStatus("等待输入 tag");
+  setInspectorMode("待检索");
   emptyState.hidden = false;
   emptyState.querySelector("p").textContent = "输入 tag 后，图片会显示在这里。";
   emptyState.querySelector("span").textContent = "默认使用 All 评级和本地过滤。";
@@ -1258,4 +1307,6 @@ favoritePosts = readFavorites();
 renderFavoriteSummary();
 renderHistory();
 renderSelectedTags();
+setInspectorMode("待检索");
+setCount(0);
 renderCurrentTags();

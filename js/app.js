@@ -8,7 +8,8 @@ const MAX_HISTORY_ITEMS = 15;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
-const DEFAULT_TARGET_POSTS = 150;
+const DEFAULT_TARGET_POSTS = 200;
+const DEFAULT_HOME_TAGS = ["order:rank"];
 
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
@@ -1249,7 +1250,7 @@ function getOptions() {
   };
 }
 
-async function runSearch(tags) {
+async function runSearch(tags, { saveToHistory = true } = {}) {
   if (tags.length === 0) {
     showNotice("至少输入 1 个 tag。");
     tagInput.focus();
@@ -1299,7 +1300,7 @@ async function runSearch(tags) {
 
       if (partialPosts.length > 0) {
         setStatus(
-          `已显示 ${allPosts.length.toLocaleString("zh-CN")} / ${partialPosts.length.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
+          `已显示 ${allPosts.length.toLocaleString("zh-CN")} / ${options.maxDisplayPosts.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
         );
       }
     });
@@ -1312,7 +1313,9 @@ async function runSearch(tags) {
     renderPosts(posts, { resetPage: allPosts.length === 0 });
     updateViewStatus({ force: true });
     setProgress(100);
-    saveHistory(tags);
+    if (saveToHistory) {
+      saveHistory(tags);
+    }
   } catch (error) {
     if (activeController !== controller) {
       return;
@@ -1602,7 +1605,7 @@ favoritePosts = readFavorites();
 updateFilterLabels();
 renderFavoriteSummary();
 renderHistory();
-renderSelectedTags();
+setTags(DEFAULT_HOME_TAGS);
 setInspectorMode("待检索");
 setCount(0);
-renderCurrentTags();
+runSearch(DEFAULT_HOME_TAGS, { saveToHistory: false });

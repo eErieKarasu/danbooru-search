@@ -1513,6 +1513,11 @@ document.querySelectorAll("[data-filter-trigger]").forEach((trigger) => {
     });
 
     control.classList.toggle("open");
+    window.requestAnimationFrame(() => {
+      if (window.scrollX !== 0) {
+        window.scrollTo({ top: window.scrollY, left: 0, behavior: "auto" });
+      }
+    });
   });
 });
 

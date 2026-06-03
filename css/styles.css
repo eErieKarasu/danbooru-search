@@ -1355,8 +1355,19 @@ a:focus-visible {
     width: 100%;
   }
 
+  .filter-control.open {
+    flex: 1 0 100%;
+  }
+
+  .filter-control.open .filter-trigger {
+    margin-bottom: 7px;
+  }
+
   .filter-menu {
-    width: min(236px, calc(100vw - 28px));
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
   }
 
   .gallery {

@@ -55,6 +55,7 @@ const inspectorResultCount = document.querySelector("#inspectorResultCount");
 const inspectorFavoriteCount = document.querySelector("#inspectorFavoriteCount");
 const inspectorTags = document.querySelector("#inspectorTags");
 const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
+const mobileFilterQuery = window.matchMedia("(max-width: 900px)");
 
 let activeController = null;
 let selectedTags = [];
@@ -1501,19 +1502,74 @@ historyList.addEventListener("click", (event) => {
   applyHistoryTag(item.dataset.tag || "");
 });
 
+function clearFilterMenuPosition(control) {
+  const menu = control?.querySelector(".filter-menu");
+
+  if (!menu) {
+    return;
+  }
+
+  menu.style.removeProperty("--filter-menu-left");
+  menu.style.removeProperty("--filter-menu-top");
+}
+
+function closeFilterControl(control) {
+  if (!control) {
+    return;
+  }
+
+  control.classList.remove("open");
+  clearFilterMenuPosition(control);
+}
+
+function closeFilterControls(exceptControl = null) {
+  document.querySelectorAll(".filter-control.open").forEach((item) => {
+    if (item !== exceptControl) {
+      closeFilterControl(item);
+    }
+  });
+}
+
+function positionFilterMenu(control) {
+  const menu = control?.querySelector(".filter-menu");
+
+  if (!menu || !mobileFilterQuery.matches || !control.classList.contains("open")) {
+    clearFilterMenuPosition(control);
+    return;
+  }
+
+  const trigger = control.querySelector(".filter-trigger");
+  const rail = control.closest(".filter-rail");
+  const triggerRect = trigger?.getBoundingClientRect();
+  const railRect = rail?.getBoundingClientRect();
+  const railWidth = railRect?.width ?? window.innerWidth;
+  const menuWidth = Math.min(236, Math.max(railWidth, 0));
+  const maxLeft = Math.max(0, railWidth - menuWidth);
+  const desiredLeft = (triggerRect?.left ?? railRect?.left ?? 0) - (railRect?.left ?? 0);
+  const left = Math.min(Math.max(desiredLeft, 0), maxLeft);
+  const top = (triggerRect?.bottom ?? railRect?.top ?? 0) - (railRect?.top ?? 0) + 7;
+
+  menu.style.setProperty("--filter-menu-left", `${Math.round(left)}px`);
+  menu.style.setProperty("--filter-menu-top", `${Math.round(top)}px`);
+}
+
 document.querySelectorAll("[data-filter-trigger]").forEach((trigger) => {
   trigger.addEventListener("click", (event) => {
     event.stopPropagation();
     const control = trigger.closest(".filter-control");
+    const wasOpen = control.classList.contains("open");
 
-    document.querySelectorAll(".filter-control.open").forEach((item) => {
-      if (item !== control) {
-        item.classList.remove("open");
-      }
-    });
+    closeFilterControls(control);
 
-    control.classList.toggle("open");
+    if (wasOpen) {
+      closeFilterControl(control);
+      return;
+    }
+
+    control.classList.add("open");
+    positionFilterMenu(control);
     window.requestAnimationFrame(() => {
+      positionFilterMenu(control);
       if (window.scrollX !== 0) {
         window.scrollTo({ top: window.scrollY, left: 0, behavior: "auto" });
       }
@@ -1530,7 +1586,7 @@ document.querySelectorAll(".filter-option").forEach((option) => {
     }
 
     filterState[filterName] = option.dataset.value;
-    option.closest(".filter-control")?.classList.remove("open");
+    closeFilterControl(option.closest(".filter-control"));
     updateFilterLabels();
     refreshCurrentView({ resetPage: true, forceStatus: true });
   });
@@ -1538,8 +1594,12 @@ document.querySelectorAll(".filter-option").forEach((option) => {
 
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".filter-control")) {
-    document.querySelectorAll(".filter-control.open").forEach((item) => item.classList.remove("open"));
+    closeFilterControls();
   }
+});
+
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".filter-control.open").forEach(positionFilterMenu);
 });
 
 document.querySelectorAll(".view-button").forEach((button) => {

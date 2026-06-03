@@ -1355,19 +1355,17 @@ a:focus-visible {
     width: 100%;
   }
 
-  .filter-control.open {
-    flex: 1 0 100%;
-  }
-
-  .filter-control.open .filter-trigger {
-    margin-bottom: 7px;
+  .filter-control {
+    position: static;
   }
 
   .filter-menu {
-    position: static;
-    width: 100%;
-    max-width: 100%;
-    box-shadow: none;
+    position: absolute;
+    top: var(--filter-menu-top, 0px);
+    left: var(--filter-menu-left, 0px);
+    width: min(236px, calc(100vw - 28px));
+    max-height: min(360px, calc(100dvh - 12px));
+    overflow: auto;
   }
 
   .gallery {

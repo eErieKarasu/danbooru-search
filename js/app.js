@@ -5,7 +5,7 @@ const MAX_RETRIES = 3;
 const HISTORY_KEY = "danbooru-search-history";
 const FAVORITES_KEY = "danbooru-search-favorites";
 const SETTINGS_KEY = "danbooru-search-settings";
-const MAX_HISTORY_ITEMS = 15;
+const MAX_HISTORY_ITEMS = 20;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
@@ -31,7 +31,6 @@ const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
 const showFavoritesButton = document.querySelector("#showFavoritesButton");
 const favoriteSummary = document.querySelector("#favoriteSummary");
-const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const currentTags = document.querySelector("#currentTags");
 const progressBar = document.querySelector("#progressBar");
 const statusText = document.querySelector("#statusText");
@@ -44,6 +43,7 @@ const emptyStateDescription = emptyState.querySelector(".empty-copy span");
 const gallery = document.querySelector("#gallery");
 const postTemplate = document.querySelector("#postTemplate");
 const historyList = document.querySelector("#historyList");
+const historyPanel = historyList.closest(".suggestions");
 const previewDialog = document.querySelector("#previewDialog");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const dialogTitle = document.querySelector("#dialogTitle");
@@ -915,12 +915,11 @@ function renderHistory() {
   historyList.replaceChildren();
 
   if (history.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty-list";
-    empty.textContent = "暂无历史记录";
-    historyList.append(empty);
+    historyPanel.hidden = true;
     return;
   }
+
+  historyPanel.hidden = false;
 
   history.forEach((tag) => {
     const button = document.createElement("button");
@@ -1302,9 +1301,11 @@ function setCount(count, sourceCount = count) {
   const visible = Number(count || 0);
   const total = Number(sourceCount || 0);
 
-  resultCount.textContent = total > 0 && visible !== total
-    ? `${visible.toLocaleString("zh-CN")} / ${total.toLocaleString("zh-CN")} 张`
-    : formatCount(visible);
+  if (resultCount) {
+    resultCount.textContent = total > 0 && visible !== total
+      ? `${visible.toLocaleString("zh-CN")} / ${total.toLocaleString("zh-CN")} 张`
+      : formatCount(visible);
+  }
 
   if (inspectorResultCount) {
     inspectorResultCount.textContent = visible.toLocaleString("zh-CN");
@@ -1696,17 +1697,19 @@ navButtons.forEach((button) => {
   });
 });
 
-clearHistoryButton.addEventListener("click", () => {
-  writeHistory([]);
-  renderHistory();
-});
-
 function applyHistoryTag(tag) {
-  if (!tag) {
+  const normalizedTag = normalizeTag(tag);
+
+  if (!normalizedTag) {
     return;
   }
 
-  addTags([tag]);
+  const pendingTags = uniqueTags([...getPendingTags(), normalizedTag]);
+  selectedTags = [];
+  tagInput.value = pendingTags.join(" ");
+  renderSelectedTags();
+  renderCurrentTags(pendingTags, getOptions().maxRemoteTags);
+
   if (isFavoritesView) {
     restoreSearchPosts();
   }

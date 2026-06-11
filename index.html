@@ -49,10 +49,6 @@
             <p class="eyebrow">order:rank</p>
             <h1>热门</h1>
           </div>
-          <div class="toolbar">
-            <span class="chip is-strong">order:rank</span>
-            <span class="chip" id="resultCount">0 张图片</span>
-          </div>
         </section>
 
         <section class="view-head search-head" data-view-panel="search" aria-label="搜索">
@@ -76,14 +72,6 @@
                 <div class="selected-tags" id="selectedTags"></div>
               </div>
               <button class="add-tag-button" id="clearButton" type="button" title="清空当前 tag" aria-label="清空当前 tag">×</button>
-
-              <div class="suggestions" aria-label="最近 tag">
-                <div class="suggestion-title">
-                  <span>recent tag</span>
-                  <button class="clear-history-button" id="clearHistoryButton" type="button">清空</button>
-                </div>
-                <div class="history-list" id="historyList"></div>
-              </div>
             </section>
 
             <nav class="command-actions" aria-label="搜索动作">
@@ -97,6 +85,10 @@
               </button>
               <button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button>
             </nav>
+
+            <div class="suggestions" aria-label="最近 tag" hidden>
+              <div class="history-list" id="historyList"></div>
+            </div>
           </form>
         </section>
 
@@ -104,9 +96,6 @@
           <div>
             <p class="eyebrow">favorites</p>
             <h1>收藏</h1>
-          </div>
-          <div class="toolbar">
-            <span class="chip is-amber"><span class="favorite-summary">0</span> saved</span>
           </div>
         </section>
 

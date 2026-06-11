@@ -122,11 +122,12 @@ a {
 }
 
 .search-shell {
+  --search-field-height: 42px;
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(120px, 1fr) auto;
   align-items: center;
-  min-height: 42px;
+  min-height: var(--search-field-height);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
@@ -143,7 +144,7 @@ a {
   position: relative;
   display: inline-grid;
   width: 42px;
-  height: 42px;
+  height: var(--search-field-height, 42px);
   place-items: center;
   color: var(--muted);
 }
@@ -184,6 +185,7 @@ a {
 }
 
 .query-row {
+  min-height: var(--search-field-height, 42px);
   overflow: hidden;
 }
 
@@ -194,6 +196,7 @@ a {
 #tagInput {
   min-width: 130px;
   width: 170px;
+  height: var(--search-field-height, 42px);
   flex: 0 0 auto;
   border: 0;
   outline: 0;
@@ -201,6 +204,8 @@ a {
   background: transparent;
   font-family: var(--mono);
   font-size: 13px;
+  line-height: var(--search-field-height, 42px);
+  padding: 0;
 }
 
 #tagInput::placeholder {
@@ -259,8 +264,10 @@ a {
 }
 
 .add-tag-button {
+  display: grid;
   width: 34px;
   height: 34px;
+  place-items: center;
   margin-right: 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -269,6 +276,7 @@ a {
   font-family: var(--mono);
   font-size: 19px;
   line-height: 1;
+  padding: 0;
 }
 
 .add-tag-button:hover {
@@ -758,6 +766,34 @@ a {
 .empty-copy span {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.empty-state.is-compact {
+  min-height: auto;
+  place-items: stretch;
+  padding: 26px 0;
+}
+
+.empty-state.is-compact .empty-panel {
+  width: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.empty-state.is-compact .empty-search-line,
+.empty-state.is-compact .ghost-grid,
+.empty-state.is-compact .empty-copy span {
+  display: none;
+}
+
+.empty-state.is-compact .empty-copy {
+  padding: 0;
+}
+
+.empty-state.is-compact .empty-copy p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .gallery {
@@ -1506,6 +1542,26 @@ body[data-view="settings"] .gallery-workspace {
   display: none;
 }
 
+body[data-view="favorites"] .active-query {
+  display: none;
+}
+
+body[data-view="search"] .active-query {
+  display: none;
+}
+
+body[data-view="favorites"] .empty-state.is-compact {
+  min-height: calc(100dvh - 230px);
+  place-items: center;
+  padding: 0;
+}
+
+body[data-view="search"] .empty-state.is-compact {
+  min-height: calc(100dvh - 320px);
+  place-items: center;
+  padding: 0;
+}
+
 body:not([data-view="settings"]) .settings-workspace {
   display: none;
 }
@@ -2009,7 +2065,6 @@ body:not([data-view="settings"]) .settings-workspace {
   transform: translateX(20px);
 }
 
-.mobile-title,
 .mobile-nav {
   display: none;
 }
@@ -2072,18 +2127,6 @@ body[data-density="wide"] .gallery {
     padding: 14px 12px 24px;
   }
 
-  .mobile-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .mobile-title strong {
-    color: var(--accent);
-  }
-
   .view-head {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -2099,7 +2142,8 @@ body[data-density="wide"] .gallery {
   }
 
   .search-shell {
-    min-height: 38px;
+    --search-field-height: 44px;
+    min-height: var(--search-field-height);
     padding: 0;
   }
 
@@ -2157,6 +2201,16 @@ body[data-density="wide"] .gallery {
   .empty-state {
     min-height: 360px;
     padding: 18px 0;
+  }
+
+  body[data-view="favorites"] .empty-state.is-compact {
+    min-height: calc(100dvh - 330px);
+    padding-bottom: 88px;
+  }
+
+  body[data-view="search"] .empty-state.is-compact {
+    min-height: calc(100dvh - 420px);
+    padding-bottom: 88px;
   }
 
   .settings-grid {

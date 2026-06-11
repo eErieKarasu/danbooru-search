@@ -18,7 +18,6 @@ const navButtons = document.querySelectorAll("[data-view-button]");
 const viewPanels = document.querySelectorAll("[data-view-panel]");
 const gallerySurface = document.querySelector("#gallerySurface");
 const settingsSurface = document.querySelector("#settingsSurface");
-const mobileStatus = document.querySelector("#mobileStatus");
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
 const selectedTagsBox = document.querySelector("#selectedTags");
@@ -31,7 +30,6 @@ const searchButton = document.querySelector("#searchButton");
 const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
 const showFavoritesButton = document.querySelector("#showFavoritesButton");
-const clearFavoritesButton = document.querySelector("#clearFavoritesButton");
 const favoriteSummary = document.querySelector("#favoriteSummary");
 const clearHistoryButton = document.querySelector("#clearHistoryButton");
 const currentTags = document.querySelector("#currentTags");
@@ -103,13 +101,6 @@ const FILTER_LABELS = {
   sort: { relevance: "默认", score: "得分", favorite: "收藏", resolution: "尺寸", newest: "最新" },
 };
 
-const VIEW_LABELS = {
-  home: "Discover",
-  search: "Search",
-  favorites: "Favorites",
-  settings: "Settings",
-};
-
 const DENSITY_VALUES = ["compact", "comfortable", "wide"];
 
 function setAppView(view) {
@@ -128,10 +119,6 @@ function setAppView(view) {
   viewPanels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.viewPanel === view);
   });
-
-  if (mobileStatus) {
-    mobileStatus.textContent = VIEW_LABELS[view] || view;
-  }
 
   if (gallerySurface) {
     gallerySurface.hidden = view === "settings";
@@ -835,10 +822,6 @@ function renderFavoriteSummary() {
     showFavoritesButton.setAttribute("aria-pressed", String(currentView === "favorites"));
   }
 
-  if (clearFavoritesButton) {
-    clearFavoritesButton.disabled = count === 0;
-  }
-
   if (inspectorFavoriteCount) {
     inspectorFavoriteCount.textContent = formattedCount;
   }
@@ -1117,6 +1100,8 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   if (resetPage) {
     activePreviewIndex = -1;
   }
+  const useCompactEmptyState = ["favorites", "search"].includes(currentView) && filteredPosts.length === 0;
+  emptyState.classList.toggle("is-compact", useCompactEmptyState);
   emptyState.hidden = filteredPosts.length > 0;
 
   if (filteredPosts.length === 0) {
@@ -1124,8 +1109,8 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
       if (posts.length === 0) {
         const emptyCopy = {
           home: ["主页暂时没有可显示图片。", "稍后重试 order:rank，或切到搜索页输入 tag。"],
-          search: ["没有找到符合条件的图片。", "可以减少本地过滤 tag 或增加图片数量。"],
-          favorites: ["暂无收藏。", "回到搜索结果后点星标加入收藏。"],
+          search: ["暂无搜索结果", ""],
+          favorites: ["暂无收藏。", ""],
         }[currentView] || ["没有可显示的图片。", "换一个入口继续查看。"];
 
         setEmptyStateCopy(
@@ -1133,10 +1118,11 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
           emptyCopy[1]
         );
       } else {
-        setEmptyStateCopy(
-          currentView === "favorites" ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。",
-          "换一个级别、比例、尺寸或排序条件继续查看。"
-        );
+        const filteredEmptyCopy = currentView === "favorites"
+          ? ["当前收藏没有匹配筛选。", ""]
+          : ["暂无搜索结果", ""];
+
+        setEmptyStateCopy(filteredEmptyCopy[0], filteredEmptyCopy[1]);
       }
     }
     renderGallery();
@@ -1167,7 +1153,8 @@ function showFavoritePosts({ resetPage = true } = {}) {
 
   if (favorites.length === 0) {
     emptyState.hidden = false;
-    setEmptyStateCopy("暂无收藏。", "回到搜索结果后点星标加入收藏。");
+    emptyState.classList.add("is-compact");
+    setEmptyStateCopy("暂无收藏。", "");
     setStatus("暂无收藏");
   } else {
     updateViewStatus({ force: true });
@@ -1199,7 +1186,8 @@ function restoreSearchPosts() {
     setInspectorMode("结果浏览");
   } else {
     emptyState.hidden = false;
-    setEmptyStateCopy("输入 tag 后，图片会显示在这里。", "默认使用 All 评级和本地过滤。");
+    emptyState.classList.add("is-compact");
+    setEmptyStateCopy("暂无搜索结果", "");
     setStatus("等待输入 tag");
     setInspectorMode("待检索");
   }
@@ -1669,7 +1657,8 @@ clearButton.addEventListener("click", () => {
   setStatus("等待输入 tag");
   setInspectorMode("待检索");
   emptyState.hidden = false;
-  setEmptyStateCopy("输入 tag 后，图片会显示在这里。", "默认使用 All 评级和本地过滤。");
+  emptyState.classList.add("is-compact");
+  setEmptyStateCopy("暂无搜索结果", "");
   tagInput.focus();
 });
 
@@ -1705,25 +1694,6 @@ navButtons.forEach((button) => {
   button.addEventListener("click", () => {
     openView(button.dataset.viewButton);
   });
-});
-
-clearFavoritesButton.addEventListener("click", () => {
-  if (favoritePosts.size === 0) {
-    return;
-  }
-
-  if (!window.confirm("清空所有收藏？")) {
-    return;
-  }
-
-  favoritePosts.clear();
-  writeFavorites();
-  renderFavoriteSummary();
-  syncFavoriteButtons();
-
-  if (isFavoritesView) {
-    showFavoritePosts();
-  }
 });
 
 clearHistoryButton.addEventListener("click", () => {

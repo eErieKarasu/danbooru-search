@@ -11,158 +11,277 @@
     <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260521">
     <meta name="apple-mobile-web-app-title" content="danbooru-search">
-    <link rel="stylesheet" href="css/styles.css?v=20260527-workflow-fix2">
+    <link rel="stylesheet" href="css/styles.css?v=20260611-nav-shell">
   </head>
   <body>
     <div class="app-shell" id="appShell">
-      <form class="command-bar" id="searchForm" aria-label="tag command bar">
+      <aside class="side-nav" aria-label="主导航">
         <div class="brand" aria-labelledby="appTitle">
-          <span class="brand-accent">danbooru</span><span id="appTitle">-search</span>
+          <span class="brand-mark">db</span>
+          <span><span class="brand-accent">danbooru</span><span id="appTitle">-search</span></span>
         </div>
-
-        <section class="search-shell" id="tagComposer" aria-label="tag search">
-          <span class="search-glyph" aria-hidden="true"></span>
-          <div class="query-row">
-            <input
-              id="tagInput"
-              name="tags"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="tag search"
-              aria-label="tag search"
-            >
-            <div class="selected-tags" id="selectedTags"></div>
-          </div>
-          <button class="add-tag-button" id="clearButton" type="button" title="清空当前 tag" aria-label="清空当前 tag">×</button>
-
-          <div class="suggestions" aria-label="最近 tag">
-            <div class="suggestion-title">
-              <span>recent tag</span>
-              <button class="clear-history-button" id="clearHistoryButton" type="button">清空</button>
-            </div>
-            <div class="history-list" id="historyList"></div>
-          </div>
-        </section>
-
-        <nav class="command-actions" aria-label="搜索动作">
-          <label class="count-control" title="本次最多加载图片数">
-            <span>数量</span>
-            <input id="countInput" type="number" min="1" step="1" value="200">
-          </label>
-          <button class="solid-button" id="searchButton" type="submit" title="搜索">
-            <span class="button-icon search-icon" aria-hidden="true"></span>
+        <nav class="nav-list" aria-label="页面">
+          <button class="nav-button is-active" data-view-button="home" type="button">
+            <span class="nav-icon icon-home" aria-hidden="true"></span>
+            <span>主页</span>
+            <span class="nav-meta">rank</span>
+          </button>
+          <button class="nav-button" data-view-button="search" type="button">
+            <span class="nav-icon icon-search" aria-hidden="true"></span>
             <span>搜索</span>
+            <span class="nav-meta">tags</span>
           </button>
-          <button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button>
-          <button class="soft-button" id="showFavoritesButton" type="button" aria-pressed="false">
+          <button class="nav-button" id="showFavoritesButton" data-view-button="favorites" type="button" aria-pressed="false">
+            <span class="nav-icon icon-fav" aria-hidden="true"></span>
             <span>收藏</span>
-            <span class="badge" id="favoriteSummary">0</span>
+            <span class="nav-meta badge" id="favoriteSummary">0</span>
           </button>
-          <button class="soft-button subtle" id="clearFavoritesButton" type="button">清空收藏</button>
-          <div class="view-toggle" aria-label="视图切换">
-            <button class="view-button is-active" type="button" aria-label="网格视图">
-              <span class="grid-icon" aria-hidden="true"></span>
-            </button>
-            <button class="view-button" type="button" aria-label="列表视图">
-              <span class="list-icon" aria-hidden="true"></span>
-            </button>
-          </div>
+          <button class="nav-button" data-view-button="settings" type="button">
+            <span class="nav-icon icon-settings" aria-hidden="true"></span>
+            <span>设置</span>
+          </button>
         </nav>
-      </form>
+      </aside>
 
-      <main class="gallery-workspace">
-        <section class="filter-rail" aria-label="结果筛选">
-          <div class="filters">
-            <div class="filter-control">
-              <button class="filter-trigger" data-filter-trigger="rating" type="button" title="Danbooru 内容分级">
-                级别: <strong id="ratingLabel">全部</strong>
-              </button>
-              <div class="filter-menu">
-                <button class="filter-option" data-filter="rating" data-value="any" type="button"><strong>全部</strong><span>不限制 rating</span></button>
-                <button class="filter-option" data-filter="rating" data-value="g" type="button"><strong>G 安全</strong><span>rating:g</span></button>
-                <button class="filter-option" data-filter="rating" data-value="s" type="button"><strong>S 敏感</strong><span>rating:s</span></button>
-                <button class="filter-option" data-filter="rating" data-value="q" type="button"><strong>Q 边缘</strong><span>rating:q</span></button>
-                <button class="filter-option" data-filter="rating" data-value="e" type="button"><strong>E 限制</strong><span>rating:e</span></button>
-              </div>
-            </div>
-
-            <div class="filter-control">
-              <button class="filter-trigger" data-filter-trigger="aspect" type="button" title="按图片宽高比例筛选">
-                比例: <strong id="aspectLabel">全部</strong>
-              </button>
-              <div class="filter-menu">
-                <button class="filter-option" data-filter="aspect" data-value="all" type="button"><strong>全部</strong><span>横图、竖图、方图都显示</span></button>
-                <button class="filter-option" data-filter="aspect" data-value="landscape" type="button"><strong>横图</strong><span>宽度大于高度</span></button>
-                <button class="filter-option" data-filter="aspect" data-value="portrait" type="button"><strong>竖图</strong><span>高度大于宽度</span></button>
-                <button class="filter-option" data-filter="aspect" data-value="square" type="button"><strong>方图</strong><span>宽高接近 1:1</span></button>
-                <button class="filter-option" data-filter="aspect" data-value="wide" type="button"><strong>宽屏</strong><span>比例大于 16:9</span></button>
-              </div>
-            </div>
-
-            <div class="filter-control">
-              <button class="filter-trigger" data-filter-trigger="size" type="button" title="按分辨率和像素量筛选">
-                尺寸: <strong id="sizeLabel">全部</strong>
-              </button>
-              <div class="filter-menu">
-                <button class="filter-option" data-filter="size" data-value="all" type="button"><strong>全部</strong><span>不限制分辨率</span></button>
-                <button class="filter-option" data-filter="size" data-value="large" type="button"><strong>大图</strong><span>长边 >= 2000 px</span></button>
-                <button class="filter-option" data-filter="size" data-value="wallpaper" type="button"><strong>壁纸</strong><span>至少 1920 x 1080</span></button>
-                <button class="filter-option" data-filter="size" data-value="absurdres" type="button"><strong>超清</strong><span>总像素 >= 8 MP</span></button>
-              </div>
-            </div>
-
-            <div class="filter-control">
-              <button class="filter-trigger" data-filter-trigger="sort" type="button" title="决定网格里的扫图顺序">
-                排序: <strong id="sortLabel">默认</strong>
-              </button>
-              <div class="filter-menu">
-                <button class="filter-option" data-filter="sort" data-value="relevance" type="button"><strong>默认</strong><span>保持返回顺序</span></button>
-                <button class="filter-option" data-filter="sort" data-value="score" type="button"><strong>得分最高</strong><span>按 score 降序</span></button>
-                <button class="filter-option" data-filter="sort" data-value="favorite" type="button"><strong>收藏最多</strong><span>按 fav_count 降序</span></button>
-                <button class="filter-option" data-filter="sort" data-value="resolution" type="button"><strong>分辨率最大</strong><span>按总像素降序</span></button>
-                <button class="filter-option" data-filter="sort" data-value="newest" type="button"><strong>最新</strong><span>按 post id 降序</span></button>
-              </div>
-            </div>
-          </div>
-
-          <div class="status-hud">
-            <div class="hud"><span class="hud-dot" aria-hidden="true"></span><span id="statusText">等待输入 tag</span></div>
-            <span class="result-count" id="resultCount">0 张图片</span>
-          </div>
-        </section>
-
-        <div class="progress-track" aria-hidden="true">
-          <span id="progressBar"></span>
+      <main class="main-area">
+        <div class="mobile-title">
+          <strong>danbooru-search</strong>
+          <span class="chip is-strong" id="mobileStatus">Discover</span>
         </div>
 
-        <section class="notice" id="noticeBox" hidden></section>
-
-        <section class="active-query" aria-live="polite">
-          <div class="active-tags" id="currentTags">
-            <span class="tag-chip is-muted">等待输入</span>
+        <section class="view-head is-active" data-view-panel="home" aria-label="主页">
+          <div>
+            <p class="eyebrow">order:rank</p>
+            <h1>热门</h1>
+          </div>
+          <div class="toolbar">
+            <span class="chip is-strong">order:rank</span>
+            <span class="chip" id="resultCount">0 张图片</span>
           </div>
         </section>
 
-        <section class="empty-state" id="emptyState">
-          <div class="empty-panel">
-            <div class="empty-search-line">
+        <section class="view-head search-head" data-view-panel="search" aria-label="搜索">
+          <div>
+            <p class="eyebrow">search</p>
+            <h1>搜索结果</h1>
+          </div>
+          <form class="command-bar" id="searchForm" aria-label="tag command bar">
+            <section class="search-shell" id="tagComposer" aria-label="tag search">
               <span class="search-glyph" aria-hidden="true"></span>
-              <span>输入 tag 后开始检索</span>
-            </div>
-            <div class="ghost-grid" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="empty-copy">
-              <p>等待检索的图库画布</p>
-              <span>历史 tag 会在搜索框聚焦时出现；收藏会作为同级图库展示。</span>
-            </div>
+              <div class="query-row">
+                <input
+                  id="tagInput"
+                  name="tags"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="tag search"
+                  aria-label="tag search"
+                >
+                <div class="selected-tags" id="selectedTags"></div>
+              </div>
+              <button class="add-tag-button" id="clearButton" type="button" title="清空当前 tag" aria-label="清空当前 tag">×</button>
+
+              <div class="suggestions" aria-label="最近 tag">
+                <div class="suggestion-title">
+                  <span>recent tag</span>
+                  <button class="clear-history-button" id="clearHistoryButton" type="button">清空</button>
+                </div>
+                <div class="history-list" id="historyList"></div>
+              </div>
+            </section>
+
+            <nav class="command-actions" aria-label="搜索动作">
+              <label class="count-control" title="本次最多加载图片数">
+                <span>数量</span>
+                <input id="countInput" type="number" min="1" step="1" value="200">
+              </label>
+              <button class="solid-button" id="searchButton" type="submit" title="搜索">
+                <span class="button-icon search-icon" aria-hidden="true"></span>
+                <span>搜索</span>
+              </button>
+              <button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button>
+            </nav>
+          </form>
+        </section>
+
+        <section class="view-head" data-view-panel="favorites" aria-label="收藏">
+          <div>
+            <p class="eyebrow">favorites</p>
+            <h1>收藏</h1>
+          </div>
+          <div class="toolbar">
+            <span class="chip is-amber"><span class="favorite-summary">0</span> saved</span>
+            <button class="soft-button" id="clearFavoritesButton" type="button">清空</button>
           </div>
         </section>
 
-        <section class="gallery" id="gallery" aria-label="图片结果"></section>
+        <section class="view-head" data-view-panel="settings" aria-label="设置">
+          <div>
+            <p class="eyebrow">settings</p>
+            <h1>设置</h1>
+          </div>
+          <div class="toolbar">
+            <button class="solid-button" id="saveSettingsButton" type="button">保存设置</button>
+          </div>
+        </section>
+
+        <section class="gallery-workspace" id="gallerySurface">
+          <section class="filter-rail" aria-label="结果筛选">
+            <div class="filters">
+              <div class="filter-control">
+                <button class="filter-trigger" data-filter-trigger="rating" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span>级别</span>
+                  <strong id="ratingLabel">全部</strong>
+                </button>
+                <div class="filter-menu" role="listbox" aria-label="级别筛选">
+                  <button class="filter-option" data-filter="rating" data-value="any" type="button" role="option"><strong>全部</strong></button>
+                  <button class="filter-option" data-filter="rating" data-value="g" type="button" role="option"><strong>G</strong></button>
+                  <button class="filter-option" data-filter="rating" data-value="s" type="button" role="option"><strong>S</strong></button>
+                  <button class="filter-option" data-filter="rating" data-value="q" type="button" role="option"><strong>Q</strong></button>
+                  <button class="filter-option" data-filter="rating" data-value="e" type="button" role="option"><strong>E</strong></button>
+                </div>
+              </div>
+              <div class="filter-control">
+                <button class="filter-trigger" data-filter-trigger="aspect" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span>比例</span>
+                  <strong id="aspectLabel">全部</strong>
+                </button>
+                <div class="filter-menu" role="listbox" aria-label="比例筛选">
+                  <button class="filter-option" data-filter="aspect" data-value="all" type="button" role="option"><strong>全部</strong></button>
+                  <button class="filter-option" data-filter="aspect" data-value="landscape" type="button" role="option"><strong>横图</strong></button>
+                  <button class="filter-option" data-filter="aspect" data-value="portrait" type="button" role="option"><strong>竖图</strong></button>
+                  <button class="filter-option" data-filter="aspect" data-value="square" type="button" role="option"><strong>方图</strong></button>
+                  <button class="filter-option" data-filter="aspect" data-value="wide" type="button" role="option"><strong>宽屏</strong></button>
+                </div>
+              </div>
+              <div class="filter-control">
+                <button class="filter-trigger" data-filter-trigger="size" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span>尺寸</span>
+                  <strong id="sizeLabel">全部</strong>
+                </button>
+                <div class="filter-menu" role="listbox" aria-label="尺寸筛选">
+                  <button class="filter-option" data-filter="size" data-value="all" type="button" role="option"><strong>全部</strong></button>
+                  <button class="filter-option" data-filter="size" data-value="large" type="button" role="option"><strong>大图</strong></button>
+                  <button class="filter-option" data-filter="size" data-value="wallpaper" type="button" role="option"><strong>壁纸</strong></button>
+                  <button class="filter-option" data-filter="size" data-value="absurdres" type="button" role="option"><strong>超清</strong></button>
+                </div>
+              </div>
+              <div class="filter-control">
+                <button class="filter-trigger" data-filter-trigger="sort" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span>排序</span>
+                  <strong id="sortLabel">默认</strong>
+                </button>
+                <div class="filter-menu" role="listbox" aria-label="排序筛选">
+                  <button class="filter-option" data-filter="sort" data-value="relevance" type="button" role="option"><strong>默认</strong></button>
+                  <button class="filter-option" data-filter="sort" data-value="score" type="button" role="option"><strong>得分</strong></button>
+                  <button class="filter-option" data-filter="sort" data-value="favorite" type="button" role="option"><strong>收藏</strong></button>
+                  <button class="filter-option" data-filter="sort" data-value="resolution" type="button" role="option"><strong>尺寸</strong></button>
+                  <button class="filter-option" data-filter="sort" data-value="newest" type="button" role="option"><strong>最新</strong></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="status-hud">
+              <div class="hud"><span class="hud-dot" aria-hidden="true"></span><span id="statusText">等待输入 tag</span></div>
+            </div>
+          </section>
+
+          <div class="progress-track" aria-hidden="true">
+            <span id="progressBar"></span>
+          </div>
+
+          <section class="notice" id="noticeBox" hidden></section>
+
+          <section class="active-query" aria-live="polite">
+            <div class="active-tags" id="currentTags">
+              <span class="tag-chip is-muted">等待输入</span>
+            </div>
+          </section>
+
+          <section class="empty-state" id="emptyState">
+            <div class="empty-panel">
+              <div class="empty-search-line">
+                <span class="search-glyph" aria-hidden="true"></span>
+                <span>正在加载图库</span>
+              </div>
+              <div class="ghost-grid" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div class="empty-copy">
+                <p>等待图片</p>
+                <span>图片结果会显示在这里。</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="gallery" id="gallery" aria-label="图片结果"></section>
+        </section>
+
+        <section class="settings-workspace" id="settingsSurface">
+          <div class="settings-grid">
+            <section class="settings-panel">
+              <div class="panel-stack">
+                <h2>默认检索</h2>
+                <label class="setting-row">
+                  <span><strong>默认加载数量</strong><p>打开搜索时的目标图片数。</p></span>
+                  <input class="number-input" id="settingsCountInput" type="number" min="1" value="200">
+                </label>
+                <label class="setting-row">
+                  <span><strong>默认 rating</strong><p>影响新搜索的远程过滤。</p></span>
+                  <select class="select-input" id="settingsRatingSelect">
+                    <option value="any">全部</option>
+                    <option value="g">G 安全</option>
+                    <option value="s">S 敏感</option>
+                    <option value="q">Q 边缘</option>
+                    <option value="e">E 限制</option>
+                  </select>
+                </label>
+                <label class="setting-row">
+                  <span><strong>默认排序</strong><p>应用到当前图库筛选。</p></span>
+                  <select class="select-input" id="settingsSortSelect">
+                    <option value="relevance">默认</option>
+                    <option value="score">得分</option>
+                    <option value="favorite">收藏</option>
+                    <option value="resolution">尺寸</option>
+                    <option value="newest">最新</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-panel">
+              <div class="panel-stack">
+                <h2>界面与本地状态</h2>
+                <div class="setting-row">
+                  <span><strong>图片密度</strong><p>调整图库信息密度。</p></span>
+                  <div class="density-control" aria-label="图片密度">
+                    <button class="density-button" data-density="compact" type="button">紧</button>
+                    <button class="density-button is-active" data-density="comfortable" type="button">舒</button>
+                    <button class="density-button" data-density="wide" type="button">宽</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span><strong>recent tags</strong><p>保留最近输入，用于搜索建议。</p></span>
+                  <button class="switch is-on" type="button" aria-label="recent tags"></button>
+                </div>
+                <div class="setting-row">
+                  <span><strong>本地缓存收藏</strong><p>收藏保存在浏览器本地。</p></span>
+                  <button class="switch is-on" type="button" aria-label="本地缓存收藏"></button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
       </main>
+
+      <nav class="mobile-nav" aria-label="移动端导航">
+        <button class="mobile-tab is-active" data-view-button="home" type="button"><span class="nav-icon icon-home" aria-hidden="true"></span><span>主页</span></button>
+        <button class="mobile-tab" data-view-button="search" type="button"><span class="nav-icon icon-search" aria-hidden="true"></span><span>搜索</span></button>
+        <button class="mobile-tab" data-view-button="favorites" type="button"><span class="nav-icon icon-fav" aria-hidden="true"></span><span>收藏</span></button>
+        <button class="mobile-tab" data-view-button="settings" type="button"><span class="nav-icon icon-settings" aria-hidden="true"></span><span>设置</span></button>
+      </nav>
 
       <div class="sr-only" aria-hidden="true">
         <span id="inspectorMode">待检索</span>
@@ -235,6 +354,6 @@
       </article>
     </template>
 
-    <script src="js/app.js?v=20260527-workflow-fix3"></script>
+    <script src="js/app.js?v=20260611-nav-shell"></script>
   </body>
 </html>

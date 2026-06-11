@@ -4,17 +4,29 @@ const REQUEST_SLEEP_MS = 700;
 const MAX_RETRIES = 3;
 const HISTORY_KEY = "danbooru-search-history";
 const FAVORITES_KEY = "danbooru-search-favorites";
+const SETTINGS_KEY = "danbooru-search-settings";
 const MAX_HISTORY_ITEMS = 15;
 const DEFAULT_MAX_REMOTE_TAGS = 2;
 const DEFAULT_RATING = "any";
 const REMOTE_FETCH_LIMIT = 100;
 const DEFAULT_TARGET_POSTS = 200;
 const DEFAULT_HOME_TAGS = ["order:rank"];
+const DEFAULT_DENSITY = "comfortable";
 
+const appShell = document.querySelector("#appShell");
+const navButtons = document.querySelectorAll("[data-view-button]");
+const viewPanels = document.querySelectorAll("[data-view-panel]");
+const gallerySurface = document.querySelector("#gallerySurface");
+const settingsSurface = document.querySelector("#settingsSurface");
+const mobileStatus = document.querySelector("#mobileStatus");
 const searchForm = document.querySelector("#searchForm");
 const tagInput = document.querySelector("#tagInput");
 const selectedTagsBox = document.querySelector("#selectedTags");
 const countInput = document.querySelector("#countInput");
+const settingsCountInput = document.querySelector("#settingsCountInput");
+const settingsRatingSelect = document.querySelector("#settingsRatingSelect");
+const settingsSortSelect = document.querySelector("#settingsSortSelect");
+const saveSettingsButton = document.querySelector("#saveSettingsButton");
 const searchButton = document.querySelector("#searchButton");
 const stopSearchButton = document.querySelector("#stopSearchButton");
 const clearButton = document.querySelector("#clearButton");
@@ -60,12 +72,15 @@ const mobileFilterQuery = window.matchMedia("(max-width: 900px)");
 let activeController = null;
 let selectedTags = [];
 let allPosts = [];
+let homePostsCache = [];
 let searchPostsCache = [];
 let favoritePosts = new Map();
+let currentView = "home";
 let isFavoritesView = false;
 let activePreviewIndex = -1;
 let activePreviewPost = null;
 let previewScrollY = 0;
+let defaultRating = DEFAULT_RATING;
 let filterState = {
   rating: "any",
   aspect: "all",
@@ -82,11 +97,52 @@ const RATING_LABELS = {
 };
 
 const FILTER_LABELS = {
-  rating: RATING_LABELS,
+  rating: { any: "全部", g: "G", s: "S", q: "Q", e: "E" },
   aspect: { all: "全部", landscape: "横图", portrait: "竖图", square: "方图", wide: "宽屏" },
   size: { all: "全部", large: "大图", wallpaper: "壁纸", absurdres: "超清" },
-  sort: { relevance: "默认", score: "得分最高", favorite: "收藏最多", resolution: "分辨率最大", newest: "最新" },
+  sort: { relevance: "默认", score: "得分", favorite: "收藏", resolution: "尺寸", newest: "最新" },
 };
+
+const VIEW_LABELS = {
+  home: "Discover",
+  search: "Search",
+  favorites: "Favorites",
+  settings: "Settings",
+};
+
+const DENSITY_VALUES = ["compact", "comfortable", "wide"];
+
+function setAppView(view) {
+  currentView = view;
+  isFavoritesView = view === "favorites";
+  document.body.dataset.view = view;
+
+  navButtons.forEach((button) => {
+    const isActive = button.dataset.viewButton === view;
+    button.classList.toggle("is-active", isActive);
+    if (button.id === "showFavoritesButton") {
+      button.setAttribute("aria-pressed", String(isActive));
+    }
+  });
+
+  viewPanels.forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.viewPanel === view);
+  });
+
+  if (mobileStatus) {
+    mobileStatus.textContent = VIEW_LABELS[view] || view;
+  }
+
+  if (gallerySurface) {
+    gallerySurface.hidden = view === "settings";
+  }
+
+  if (settingsSurface) {
+    settingsSurface.hidden = view !== "settings";
+  }
+
+  appShell?.querySelector(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
 
 function normalizeTag(tag) {
   return String(tag).trim().replace(/\s+/g, "_");
@@ -602,6 +658,99 @@ function writeFavorites() {
   }
 }
 
+function isKnownOption(options, value) {
+  return Object.prototype.hasOwnProperty.call(options, value);
+}
+
+function normalizeSettings(rawSettings = {}) {
+  const targetCount = Number(rawSettings.targetCount);
+  const normalizedFilters = { ...filterState };
+  const rawFilters = rawSettings.filterState && typeof rawSettings.filterState === "object"
+    ? rawSettings.filterState
+    : {};
+
+  Object.keys(normalizedFilters).forEach((key) => {
+    if (isKnownOption(FILTER_LABELS[key] || {}, rawFilters[key])) {
+      normalizedFilters[key] = rawFilters[key];
+    }
+  });
+
+  return {
+    targetCount: Number.isFinite(targetCount) && targetCount > 0
+      ? Math.floor(targetCount)
+      : DEFAULT_TARGET_POSTS,
+    defaultRating: isKnownOption(RATING_LABELS, rawSettings.defaultRating)
+      ? rawSettings.defaultRating
+      : DEFAULT_RATING,
+    filterState: normalizedFilters,
+    density: DENSITY_VALUES.includes(rawSettings.density)
+      ? rawSettings.density
+      : DEFAULT_DENSITY,
+  };
+}
+
+function readSettings() {
+  try {
+    const rawSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return normalizeSettings(rawSettings && typeof rawSettings === "object" ? rawSettings : {});
+  } catch {
+    return normalizeSettings();
+  }
+}
+
+function getCurrentSettings() {
+  const targetCount = Number(countInput.value);
+
+  return normalizeSettings({
+    targetCount: Number.isFinite(targetCount) && targetCount > 0
+      ? Math.floor(targetCount)
+      : DEFAULT_TARGET_POSTS,
+    defaultRating,
+    filterState,
+    density: document.body.dataset.density || DEFAULT_DENSITY,
+  });
+}
+
+function applySettings(settings) {
+  const normalizedSettings = normalizeSettings(settings);
+
+  defaultRating = normalizedSettings.defaultRating;
+  filterState = { ...filterState, ...normalizedSettings.filterState };
+  document.body.dataset.density = normalizedSettings.density;
+  countInput.value = String(normalizedSettings.targetCount);
+
+  if (settingsCountInput) {
+    settingsCountInput.value = String(normalizedSettings.targetCount);
+  }
+
+  if (settingsRatingSelect) {
+    settingsRatingSelect.value = defaultRating;
+  }
+
+  document.querySelectorAll(".density-button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.density === normalizedSettings.density);
+  });
+}
+
+function writeSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(getCurrentSettings()));
+  } catch {
+    // Settings are convenience defaults; the app remains usable without storage.
+  }
+}
+
+function acknowledgeSettingsSaved() {
+  if (!saveSettingsButton) {
+    return;
+  }
+
+  saveSettingsButton.textContent = "已保存";
+  window.setTimeout(() => {
+    saveSettingsButton.textContent = "保存设置";
+  }, 1100);
+}
+
 function createFavoriteSnapshot(post) {
   const size = getPostSize(post);
   const tags = getPreviewTags(post);
@@ -669,15 +818,29 @@ function syncFavoriteButtons() {
 
 function renderFavoriteSummary() {
   const count = favoritePosts.size;
-  favoriteSummary.textContent = count.toLocaleString("zh-CN");
-  showFavoritesButton.title = isFavoritesView ? "当前显示收藏" : "查看收藏";
-  showFavoritesButton.disabled = false;
-  showFavoritesButton.classList.toggle("is-active", isFavoritesView);
-  showFavoritesButton.setAttribute("aria-pressed", String(isFavoritesView));
-  clearFavoritesButton.disabled = count === 0;
+  const formattedCount = count.toLocaleString("zh-CN");
+
+  if (favoriteSummary) {
+    favoriteSummary.textContent = formattedCount;
+  }
+
+  document.querySelectorAll(".favorite-summary").forEach((node) => {
+    node.textContent = formattedCount;
+  });
+
+  if (showFavoritesButton) {
+    showFavoritesButton.title = currentView === "favorites" ? "当前显示收藏" : "查看收藏";
+    showFavoritesButton.disabled = false;
+    showFavoritesButton.classList.toggle("is-active", currentView === "favorites");
+    showFavoritesButton.setAttribute("aria-pressed", String(currentView === "favorites"));
+  }
+
+  if (clearFavoritesButton) {
+    clearFavoritesButton.disabled = count === 0;
+  }
 
   if (inspectorFavoriteCount) {
-    inspectorFavoriteCount.textContent = count.toLocaleString("zh-CN");
+    inspectorFavoriteCount.textContent = formattedCount;
   }
 }
 
@@ -932,7 +1095,19 @@ function renderGallery() {
 }
 
 function getCurrentSourcePosts() {
-  return isFavoritesView ? getFavoritePosts() : searchPostsCache;
+  if (currentView === "home") {
+    return homePostsCache;
+  }
+
+  if (currentView === "favorites") {
+    return getFavoritePosts();
+  }
+
+  if (currentView === "search") {
+    return searchPostsCache;
+  }
+
+  return [];
 }
 
 function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
@@ -947,13 +1122,19 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   if (filteredPosts.length === 0) {
     if (showEmptyResult) {
       if (posts.length === 0) {
+        const emptyCopy = {
+          home: ["主页暂时没有可显示图片。", "稍后重试 order:rank，或切到搜索页输入 tag。"],
+          search: ["没有找到符合条件的图片。", "可以减少本地过滤 tag 或增加图片数量。"],
+          favorites: ["暂无收藏。", "回到搜索结果后点星标加入收藏。"],
+        }[currentView] || ["没有可显示的图片。", "换一个入口继续查看。"];
+
         setEmptyStateCopy(
-          isFavoritesView ? "暂无收藏。" : "没有找到符合条件的图片。",
-          isFavoritesView ? "回到搜索结果后点星标加入收藏。" : "可以减少本地过滤 tag 或增加图片数量。"
+          emptyCopy[0],
+          emptyCopy[1]
         );
       } else {
         setEmptyStateCopy(
-          isFavoritesView ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。",
+          currentView === "favorites" ? "当前收藏没有匹配筛选。" : "当前筛选没有匹配图片。",
           "换一个级别、比例、尺寸或排序条件继续查看。"
         );
       }
@@ -974,8 +1155,8 @@ function showFavoritePosts({ resetPage = true } = {}) {
     setLoading(false);
   }
 
+  setAppView("favorites");
   const favorites = getFavoritePosts();
-  isFavoritesView = true;
   if (resetPage) {
     activePreviewIndex = -1;
   }
@@ -998,7 +1179,15 @@ function showFavoritePosts({ resetPage = true } = {}) {
 }
 
 function restoreSearchPosts() {
-  isFavoritesView = false;
+  const shouldAbortActiveSearch = activeController && currentView !== "search";
+
+  if (shouldAbortActiveSearch) {
+    activeController.abort();
+    activeController = null;
+    setLoading(false);
+  }
+
+  setAppView("search");
   activePreviewIndex = -1;
   hideNotice();
   setProgress(searchPostsCache.length > 0 ? 100 : 0);
@@ -1017,6 +1206,29 @@ function restoreSearchPosts() {
 
   renderFavoriteSummary();
   syncFavoriteButtons();
+}
+
+function showHomePosts({ resetPage = true } = {}) {
+  if (activeController) {
+    activeController.abort();
+    activeController = null;
+    setLoading(false);
+  }
+
+  setAppView("home");
+  activePreviewIndex = resetPage ? -1 : activePreviewIndex;
+  hideNotice();
+  setProgress(homePostsCache.length > 0 ? 100 : 0);
+  renderCurrentTags(DEFAULT_HOME_TAGS, DEFAULT_MAX_REMOTE_TAGS);
+
+  if (homePostsCache.length > 0) {
+    renderPosts(homePostsCache, { resetPage, showEmptyResult: true });
+    updateViewStatus({ force: true });
+    syncFavoriteButtons();
+    return;
+  }
+
+  runSearch(DEFAULT_HOME_TAGS, { saveToHistory: false, source: "home" });
 }
 
 function setSelectedPost(index) {
@@ -1127,8 +1339,14 @@ function updateFilterLabels() {
   });
 
   document.querySelectorAll(".filter-option").forEach((option) => {
-    option.classList.toggle("active", filterState[option.dataset.filter] === option.dataset.value);
+    const isActive = filterState[option.dataset.filter] === option.dataset.value;
+    option.classList.toggle("active", isActive);
+    option.setAttribute("aria-selected", String(isActive));
   });
+
+  if (settingsSortSelect) {
+    settingsSortSelect.value = filterState.sort;
+  }
 }
 
 function updateViewStatus({ force = false } = {}) {
@@ -1142,13 +1360,19 @@ function updateViewStatus({ force = false } = {}) {
     return;
   }
 
-  if (isFavoritesView) {
+  if (currentView === "favorites") {
     setStatus(sourceCount > 0 ? `收藏 · ${visibleCount} / ${sourceCount} 张` : "暂无收藏");
     setInspectorMode("收藏视图");
     return;
   }
 
-  if (sourceCount > 0) {
+  if (currentView === "home") {
+    setStatus(sourceCount > 0 ? `热门 · ${visibleCount} / ${sourceCount} 张` : "正在加载热门");
+    setInspectorMode("主页热门");
+    return;
+  }
+
+  if (currentView === "search" && sourceCount > 0) {
     setStatus(`筛选完成 · ${visibleCount} / ${sourceCount} 张`);
     setInspectorMode("结果浏览");
   } else {
@@ -1247,11 +1471,11 @@ function getOptions() {
     targetCount,
     maxDisplayPosts: targetCount,
     maxRemoteTags: DEFAULT_MAX_REMOTE_TAGS,
-    rating: DEFAULT_RATING,
+    rating: defaultRating,
   };
 }
 
-async function runSearch(tags, { saveToHistory = true } = {}) {
+async function runSearch(tags, { saveToHistory = true, source = "search" } = {}) {
   if (tags.length === 0) {
     showNotice("至少输入 1 个 tag。");
     tagInput.focus();
@@ -1265,8 +1489,12 @@ async function runSearch(tags, { saveToHistory = true } = {}) {
   const options = getOptions();
   const { remoteTags, localTags } = splitRemoteAndLocalTags(tags, options.maxRemoteTags);
 
-  isFavoritesView = false;
-  searchPostsCache = [];
+  setAppView(source);
+  if (source === "home") {
+    homePostsCache = [];
+  } else {
+    searchPostsCache = [];
+  }
   renderFavoriteSummary();
 
   const controller = new AbortController();
@@ -1296,7 +1524,11 @@ async function runSearch(tags, { saveToHistory = true } = {}) {
         return;
       }
 
-      searchPostsCache = partialPosts;
+      if (source === "home") {
+        homePostsCache = partialPosts;
+      } else {
+        searchPostsCache = partialPosts;
+      }
       renderPosts(partialPosts, { resetPage: false, showEmptyResult: false });
 
       if (partialPosts.length > 0) {
@@ -1310,11 +1542,15 @@ async function runSearch(tags, { saveToHistory = true } = {}) {
       return;
     }
 
-    searchPostsCache = posts;
+    if (source === "home") {
+      homePostsCache = posts;
+    } else {
+      searchPostsCache = posts;
+    }
     renderPosts(posts, { resetPage: allPosts.length === 0 });
     updateViewStatus({ force: true });
     setProgress(100);
-    if (saveToHistory) {
+    if (saveToHistory && source === "search") {
       saveHistory(tags);
     }
   } catch (error) {
@@ -1361,7 +1597,7 @@ function stopActiveSearch() {
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   commitInputTags();
-  runSearch(selectedTags);
+  runSearch(selectedTags, { source: "search" });
 });
 
 tagInput.addEventListener("keydown", (event) => {
@@ -1421,7 +1657,7 @@ clearButton.addEventListener("click", () => {
   tagInput.value = "";
   allPosts = [];
   searchPostsCache = [];
-  isFavoritesView = false;
+  setAppView("search");
   activePreviewIndex = -1;
   gallery.replaceChildren();
   hideNotice();
@@ -1437,12 +1673,38 @@ clearButton.addEventListener("click", () => {
   tagInput.focus();
 });
 
-showFavoritesButton.addEventListener("click", () => {
-  if (isFavoritesView) {
-    restoreSearchPosts();
-  } else {
-    showFavoritePosts();
+function openView(view) {
+  if (view === "home") {
+    showHomePosts();
+    return;
   }
+
+  if (view === "search") {
+    restoreSearchPosts();
+    return;
+  }
+
+  if (view === "favorites") {
+    showFavoritePosts();
+    return;
+  }
+
+  if (view === "settings") {
+    if (activeController) {
+      activeController.abort();
+      activeController = null;
+      setLoading(false);
+    }
+    setAppView("settings");
+    hideNotice();
+    setInspectorMode("设置");
+  }
+}
+
+navButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    openView(button.dataset.viewButton);
+  });
 });
 
 clearFavoritesButton.addEventListener("click", () => {
@@ -1519,6 +1781,7 @@ function closeFilterControl(control) {
   }
 
   control.classList.remove("open");
+  control.querySelector(".filter-trigger")?.setAttribute("aria-expanded", "false");
   clearFilterMenuPosition(control);
 }
 
@@ -1543,7 +1806,7 @@ function positionFilterMenu(control) {
   const triggerRect = trigger?.getBoundingClientRect();
   const railRect = rail?.getBoundingClientRect();
   const railWidth = railRect?.width ?? window.innerWidth;
-  const menuWidth = Math.min(236, Math.max(railWidth, 0));
+  const menuWidth = Math.min(menu.offsetWidth || 168, Math.max(railWidth, 0));
   const maxLeft = Math.max(0, railWidth - menuWidth);
   const desiredLeft = (triggerRect?.left ?? railRect?.left ?? 0) - (railRect?.left ?? 0);
   const left = Math.min(Math.max(desiredLeft, 0), maxLeft);
@@ -1567,6 +1830,7 @@ document.querySelectorAll("[data-filter-trigger]").forEach((trigger) => {
     }
 
     control.classList.add("open");
+    trigger.setAttribute("aria-expanded", "true");
     positionFilterMenu(control);
     window.requestAnimationFrame(() => {
       positionFilterMenu(control);
@@ -1590,6 +1854,52 @@ document.querySelectorAll(".filter-option").forEach((option) => {
     updateFilterLabels();
     refreshCurrentView({ resetPage: true, forceStatus: true });
   });
+});
+
+settingsCountInput?.addEventListener("input", () => {
+  const nextValue = Number(settingsCountInput.value);
+
+  if (Number.isFinite(nextValue) && nextValue > 0) {
+    countInput.value = String(Math.floor(nextValue));
+  }
+});
+
+countInput?.addEventListener("input", () => {
+  if (settingsCountInput) {
+    settingsCountInput.value = countInput.value;
+  }
+});
+
+settingsRatingSelect?.addEventListener("change", () => {
+  defaultRating = settingsRatingSelect.value;
+});
+
+settingsSortSelect?.addEventListener("change", () => {
+  filterState.sort = settingsSortSelect.value;
+  updateFilterLabels();
+  refreshCurrentView({ resetPage: true, forceStatus: true });
+});
+
+document.querySelectorAll(".density-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".density-button").forEach((item) => {
+      item.classList.toggle("is-active", item === button);
+    });
+    document.body.dataset.density = button.dataset.density || "comfortable";
+    renderGallery();
+  });
+});
+
+document.querySelectorAll(".switch").forEach((button) => {
+  button.addEventListener("click", () => {
+    button.classList.toggle("is-on");
+  });
+});
+
+saveSettingsButton?.addEventListener("click", () => {
+  writeSettings();
+  setInspectorMode("设置已保存");
+  acknowledgeSettingsSaved();
 });
 
 document.addEventListener("click", (event) => {
@@ -1667,10 +1977,12 @@ if (typeof mobileGalleryQuery.addEventListener === "function") {
 }
 
 favoritePosts = readFavorites();
+applySettings(readSettings());
 updateFilterLabels();
 renderFavoriteSummary();
 renderHistory();
-setTags(DEFAULT_HOME_TAGS);
-setInspectorMode("待检索");
+setTags([]);
+setAppView("home");
+setInspectorMode("主页热门");
 setCount(0);
-runSearch(DEFAULT_HOME_TAGS, { saveToHistory: false });
+runSearch(DEFAULT_HOME_TAGS, { saveToHistory: false, source: "home" });

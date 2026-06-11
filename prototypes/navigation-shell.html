@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>danbooru-search navigation prototype</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050807;
+        --bg-soft: #0a0f0e;
+        --panel: rgba(18, 25, 23, 0.88);
+        --panel-2: rgba(255, 255, 255, 0.055);
+        --panel-3: rgba(255, 255, 255, 0.085);
+        --line: rgba(190, 218, 202, 0.16);
+        --line-strong: rgba(180, 222, 184, 0.34);
+        --text: #eef5ee;
+        --muted: #9ca8a2;
+        --dim: #6f7a75;
+        --mint: #9bc27c;
+        --cyan: #7ccfd2;
+        --amber: #d7a751;
+        --red: #df7568;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(124, 207, 210, 0.05), transparent 34%),
+          linear-gradient(90deg, rgba(155, 194, 124, 0.05), rgba(215, 167, 81, 0.035)),
+          var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 14px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 2px solid rgba(124, 207, 210, 0.86);
+        outline-offset: 2px;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 216px minmax(0, 1fr);
+        min-height: 100dvh;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+        background-size: 44px 44px;
+      }
+
+      .side-nav {
+        position: sticky;
+        top: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        height: 100dvh;
+        border-right: 1px solid var(--line);
+        background: rgba(5, 8, 7, 0.86);
+        backdrop-filter: blur(18px);
+        padding: 14px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 4px 4px 16px;
+        border-bottom: 1px solid var(--line);
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 1px solid rgba(155, 194, 124, 0.45);
+        border-radius: 8px;
+        background:
+          linear-gradient(135deg, rgba(155, 194, 124, 0.22), rgba(124, 207, 210, 0.08)),
+          rgba(255, 255, 255, 0.04);
+        color: var(--mint);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .brand strong {
+        display: block;
+        color: var(--mint);
+        font-size: 15px;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .nav-list {
+        display: grid;
+        align-content: start;
+        gap: 7px;
+        padding: 16px 0;
+      }
+
+      .nav-button,
+      .mobile-tab {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        border-radius: 8px;
+        background: transparent;
+        padding: 0 10px;
+        color: var(--muted);
+        text-align: left;
+      }
+
+      .nav-button:hover,
+      .mobile-tab:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+
+      .nav-button.is-active,
+      .mobile-tab.is-active {
+        border: 1px solid rgba(155, 194, 124, 0.36);
+        background: rgba(155, 194, 124, 0.12);
+        color: var(--text);
+      }
+
+      .nav-icon,
+      .small-icon {
+        position: relative;
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        color: currentColor;
+      }
+
+      .nav-icon::before,
+      .nav-icon::after,
+      .small-icon::before,
+      .small-icon::after {
+        position: absolute;
+        content: "";
+      }
+
+      .icon-home::before {
+        width: 15px;
+        height: 13px;
+        border: 2px solid currentColor;
+        border-top: 0;
+        border-radius: 2px;
+        transform: translateY(3px);
+      }
+
+      .icon-home::after {
+        width: 12px;
+        height: 12px;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+        transform: translateY(-3px) rotate(45deg);
+      }
+
+      .icon-search::before,
+      .small-search::before {
+        width: 12px;
+        height: 12px;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+      }
+
+      .icon-search::after,
+      .small-search::after {
+        width: 8px;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transform: translate(7px, 7px) rotate(45deg);
+      }
+
+      .icon-fav::before {
+        width: 16px;
+        height: 14px;
+        background: currentColor;
+        clip-path: path("M8 14 C2 10 0 7 0 4 C0 1 4 0 8 4 C12 0 16 1 16 4 C16 7 14 10 8 14 Z");
+      }
+
+      .icon-settings::before {
+        width: 16px;
+        height: 16px;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+      }
+
+      .icon-settings::after {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .nav-meta {
+        display: inline-flex;
+        justify-self: end;
+        min-width: 22px;
+        height: 22px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--muted);
+        padding: 0 7px;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .rail-note {
+        border-top: 1px solid var(--line);
+        color: var(--dim);
+        padding: 14px 4px 2px;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .main-area {
+        min-width: 0;
+        height: 100dvh;
+        overflow: auto;
+        padding: 18px 20px 36px;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        padding: 0 0 14px;
+        background: linear-gradient(180deg, rgba(5, 8, 7, 0.96) 0%, rgba(5, 8, 7, 0.82) 70%, rgba(5, 8, 7, 0) 100%);
+      }
+
+      body.is-home .topbar,
+      body.is-search .topbar,
+      body.is-favorites .topbar,
+      body.is-settings .topbar {
+        display: none;
+      }
+
+      .search-strip {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        align-items: center;
+        min-height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.065);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      }
+
+      .search-strip input {
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .search-strip input::placeholder {
+        color: var(--dim);
+      }
+
+      .solid-button,
+      .soft-button,
+      .icon-button {
+        display: inline-flex;
+        min-height: 36px;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border-radius: 8px;
+        padding: 0 12px;
+        white-space: nowrap;
+      }
+
+      .solid-button {
+        background: linear-gradient(135deg, var(--mint), #b7d98f);
+        color: #0d130f;
+        font-weight: 750;
+      }
+
+      .soft-button,
+      .icon-button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+      }
+
+      .icon-button {
+        width: 38px;
+        padding: 0;
+      }
+
+      .page {
+        display: none;
+      }
+
+      .page.is-active {
+        display: block;
+      }
+
+      .page-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: end;
+        margin: 10px 0 18px;
+      }
+
+      .page-head.home-head {
+        align-items: center;
+        margin: 0 0 12px;
+      }
+
+      .home-head h1,
+      .search-head h1,
+      .favorites-head h1,
+      .settings-head h1 {
+        font-size: 22px;
+      }
+
+      .eyebrow {
+        margin: 0 0 6px;
+        color: var(--cyan);
+        font-family: var(--mono);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 17px;
+        letter-spacing: 0;
+      }
+
+      .lede {
+        max-width: 780px;
+        margin-top: 8px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .toolbar,
+      .chip-row,
+      .status-row {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toolbar {
+        justify-content: flex-end;
+      }
+
+      .chip,
+      .status-pill {
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.058);
+        color: var(--muted);
+        padding: 0 9px;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .chip.is-strong {
+        border-color: rgba(155, 194, 124, 0.36);
+        color: var(--mint);
+      }
+
+      .chip.is-cyan {
+        border-color: rgba(124, 207, 210, 0.32);
+        color: var(--cyan);
+      }
+
+      .chip.is-amber {
+        border-color: rgba(215, 167, 81, 0.34);
+        color: var(--amber);
+      }
+
+      .section-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 290px;
+        gap: 16px;
+      }
+
+      .filter-bar {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 7px;
+        margin: 0 0 12px;
+      }
+
+      .filter-select {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        min-height: 42px;
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.055);
+        padding: 6px 8px;
+      }
+
+      .filter-select span {
+        color: var(--dim);
+        font-size: 10px;
+      }
+
+      .filter-select strong {
+        color: var(--text);
+        font-size: 12px;
+      }
+
+      .filter-select select {
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        appearance: none;
+        background: transparent;
+        color: var(--text);
+        font-weight: 720;
+        font-size: 12px;
+        line-height: 1.2;
+        padding: 0 14px 0 0;
+      }
+
+      .filter-select::after {
+        position: absolute;
+        right: 8px;
+        bottom: 11px;
+        width: 6px;
+        height: 6px;
+        border-right: 1px solid var(--muted);
+        border-bottom: 1px solid var(--muted);
+        content: "";
+        pointer-events: none;
+        transform: rotate(45deg);
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 12px;
+      }
+
+      .post-card {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.2);
+      }
+
+      .thumb {
+        position: relative;
+        min-height: 188px;
+        background:
+          radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.24), transparent 18%),
+          radial-gradient(circle at 70% 38%, rgba(124, 207, 210, 0.34), transparent 24%),
+          linear-gradient(135deg, rgba(155, 194, 124, 0.52), rgba(35, 50, 48, 0.95) 48%, rgba(215, 167, 81, 0.42));
+      }
+
+      .post-card:nth-child(3n) .thumb {
+        min-height: 232px;
+        background:
+          linear-gradient(145deg, rgba(124, 207, 210, 0.48), rgba(15, 20, 19, 0.94) 55%),
+          repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 12px);
+      }
+
+      .post-card:nth-child(4n) .thumb {
+        min-height: 156px;
+        background:
+          radial-gradient(circle at 70% 25%, rgba(215, 167, 81, 0.44), transparent 22%),
+          linear-gradient(160deg, rgba(75, 91, 78, 0.95), rgba(10, 14, 13, 0.95));
+      }
+
+      .rating {
+        position: absolute;
+        top: 9px;
+        left: 9px;
+        border-radius: 7px;
+        background: rgba(5, 8, 7, 0.72);
+        color: var(--text);
+        padding: 4px 7px;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .favorite {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        background: rgba(5, 8, 7, 0.64);
+      }
+
+      .favorite::before {
+        width: 15px;
+        height: 14px;
+        background: currentColor;
+        clip-path: path("M7.5 13 C2 9.5 0 6.8 0 3.8 C0 1.3 3.2 0 7.5 3.5 C11.8 0 15 1.3 15 3.8 C15 6.8 13 9.5 7.5 13 Z");
+        color: var(--muted);
+        content: "";
+      }
+
+      .favorite.is-on::before {
+        color: var(--amber);
+      }
+
+      .post-meta {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      .post-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .post-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+
+      .tag {
+        overflow: hidden;
+        max-width: 100%;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        padding: 4px 6px;
+        font-family: var(--mono);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .side-panel,
+      .settings-panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 14px;
+      }
+
+      .side-panel {
+        position: sticky;
+        top: 78px;
+        align-self: start;
+      }
+
+      .panel-stack,
+      .settings-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.048);
+        padding: 10px;
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--text);
+        font-size: 18px;
+      }
+
+      .metric span {
+        color: var(--dim);
+        font-size: 12px;
+      }
+
+      .empty-state {
+        display: grid;
+        min-height: 220px;
+        place-items: center;
+        border: 1px dashed rgba(190, 218, 202, 0.2);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.035);
+        color: var(--muted);
+        text-align: center;
+        padding: 28px;
+      }
+
+      .empty-state strong {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text);
+        font-size: 18px;
+      }
+
+      .search-workbench {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 16px;
+      }
+
+      .composer-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.052);
+        padding: 14px;
+      }
+
+      .tag-composer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 96px auto;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .result-query-form {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) 88px auto;
+        gap: 8px;
+        margin: 0 0 10px;
+      }
+
+      .text-input,
+      .number-input,
+      .select-input {
+        min-height: 38px;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.18);
+        color: var(--text);
+        padding: 0 10px;
+      }
+
+      .settings-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .setting-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.046);
+        padding: 12px;
+      }
+
+      .setting-row p {
+        margin-top: 4px;
+        color: var(--dim);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .switch {
+        position: relative;
+        width: 46px;
+        height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .switch::before {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--muted);
+        content: "";
+        transition: transform 160ms ease, background 160ms ease;
+      }
+
+      .switch.is-on {
+        border-color: rgba(155, 194, 124, 0.36);
+        background: rgba(155, 194, 124, 0.14);
+      }
+
+      .switch.is-on::before {
+        background: var(--mint);
+        transform: translateX(20px);
+      }
+
+      .density-control {
+        display: inline-grid;
+        grid-template-columns: repeat(3, 1fr);
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .density-control button {
+        min-width: 42px;
+        min-height: 30px;
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .density-control button.is-active {
+        background: rgba(124, 207, 210, 0.16);
+        color: var(--cyan);
+      }
+
+      .mobile-nav {
+        display: none;
+      }
+
+      .mobile-title {
+        display: none;
+      }
+
+      @media (max-width: 1060px) {
+        .app-shell {
+          grid-template-columns: 72px minmax(0, 1fr);
+        }
+
+        .side-nav {
+          padding: 10px;
+        }
+
+        .brand {
+          justify-content: center;
+          padding-bottom: 12px;
+        }
+
+        .brand div,
+        .nav-button span:not(.nav-icon),
+        .nav-meta,
+        .rail-note {
+          display: none;
+        }
+
+        .nav-button {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          padding: 0;
+        }
+
+        .section-grid,
+        .search-workbench {
+          grid-template-columns: 1fr;
+        }
+
+        .side-panel {
+          position: static;
+        }
+      }
+
+      @media (max-width: 760px) {
+        body {
+          overflow: hidden;
+        }
+
+        .app-shell {
+          display: block;
+          min-height: 100dvh;
+        }
+
+        .side-nav {
+          display: none;
+        }
+
+        .main-area {
+          height: calc(100dvh - 88px);
+          min-height: 0;
+          overflow: auto;
+          padding: 14px 12px 24px;
+        }
+
+        .mobile-title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .mobile-title strong {
+          color: var(--mint);
+        }
+
+        .topbar {
+          grid-template-columns: 1fr;
+          top: 0;
+          padding-bottom: 10px;
+        }
+
+        .topbar .soft-button {
+          display: none;
+        }
+
+        .page-head {
+          grid-template-columns: 1fr;
+          gap: 12px;
+          margin-top: 4px;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .toolbar {
+          justify-content: flex-start;
+        }
+
+        .filter-bar {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 6px;
+        }
+
+        .gallery {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .thumb,
+        .post-card:nth-child(3n) .thumb,
+        .post-card:nth-child(4n) .thumb {
+          min-height: 158px;
+        }
+
+        .settings-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .tag-composer {
+          grid-template-columns: 1fr;
+        }
+
+        .result-query-form {
+          grid-template-columns: 1fr 78px auto;
+        }
+
+        .mobile-nav {
+          position: fixed;
+          right: 10px;
+          bottom: 10px;
+          left: 10px;
+          z-index: 60;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 6px;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          background: rgba(6, 9, 8, 0.93);
+          padding: 6px;
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(18px);
+        }
+
+        .mobile-tab {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          gap: 3px;
+          min-height: 54px;
+          padding: 4px;
+          text-align: center;
+          font-size: 11px;
+        }
+
+        .mobile-tab .nav-icon {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      @media (max-width: 460px) {
+        .gallery {
+          grid-template-columns: 1fr;
+        }
+
+        .filter-bar {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .search-strip {
+          grid-template-columns: 36px minmax(0, 1fr) auto;
+        }
+
+        .search-strip .solid-button {
+          padding: 0 10px;
+        }
+
+        .result-query-form {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .result-query-form .number-input {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="is-home">
+    <div class="app-shell">
+      <aside class="side-nav" aria-label="主导航">
+        <div class="brand">
+          <span class="brand-mark">db</span>
+          <div>
+            <strong>danbooru-search</strong>
+            <span>image workflow</span>
+          </div>
+        </div>
+        <nav class="nav-list" aria-label="页面">
+          <button class="nav-button is-active" type="button" data-page="home">
+            <span class="nav-icon icon-home"></span>
+            <span>主页</span>
+            <span class="nav-meta">rank</span>
+          </button>
+          <button class="nav-button" type="button" data-page="search">
+            <span class="nav-icon icon-search"></span>
+            <span>搜索</span>
+            <span class="nav-meta">tags</span>
+          </button>
+          <button class="nav-button" type="button" data-page="favorites">
+            <span class="nav-icon icon-fav"></span>
+            <span>收藏</span>
+            <span class="nav-meta favorite-count">3</span>
+          </button>
+          <button class="nav-button" type="button" data-page="settings">
+            <span class="nav-icon icon-settings"></span>
+            <span>设置</span>
+          </button>
+        </nav>
+        <div class="rail-note">主页固定展示 <strong>order:rank</strong>，搜索页只处理主动查询。</div>
+      </aside>
+
+      <main class="main-area">
+        <div class="mobile-title">
+          <strong>danbooru-search</strong>
+          <span class="chip is-strong" id="mobileStatus">Discover</span>
+        </div>
+
+        <form class="topbar" id="quickSearch">
+          <label class="search-strip" aria-label="快速搜索">
+            <span class="small-icon small-search"></span>
+            <input id="quickInput" type="text" autocomplete="off" spellcheck="false" placeholder="tag search, e.g. scenery rating:g">
+            <button class="solid-button" type="submit">搜索</button>
+          </label>
+          <button class="soft-button" type="button" data-page="favorites">收藏 <span class="favorite-count">3</span></button>
+        </form>
+
+        <section class="page is-active" id="page-home" aria-label="主页">
+          <header class="page-head home-head">
+            <div>
+              <p class="eyebrow">order:rank</p>
+              <h1>热门</h1>
+            </div>
+            <div class="toolbar">
+              <span class="chip is-strong">order:rank</span>
+              <span class="chip is-cyan">200 posts</span>
+              <span class="chip"><span class="favorite-count">3</span> saved</span>
+            </div>
+          </header>
+
+          <div>
+            <div class="filter-bar" aria-label="主页筛选">
+              <label class="filter-select">
+                <span>级别</span>
+                <select aria-label="主页级别">
+                  <option>全部</option>
+                  <option>G</option>
+                  <option>S</option>
+                  <option>Q</option>
+                  <option>E</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>比例</span>
+                <select aria-label="主页比例">
+                  <option>全部</option>
+                  <option>横图</option>
+                  <option>竖图</option>
+                  <option>方图</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>尺寸</span>
+                <select aria-label="主页尺寸">
+                  <option>大图</option>
+                  <option>全部</option>
+                  <option>壁纸</option>
+                  <option>超清</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>排序</span>
+                <select aria-label="主页排序">
+                  <option>Rank</option>
+                  <option>得分</option>
+                  <option>收藏</option>
+                  <option>最新</option>
+                </select>
+              </label>
+            </div>
+            <div class="gallery" data-gallery="home"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-search" aria-label="搜索">
+          <header class="page-head home-head search-head">
+            <div>
+              <p class="eyebrow">search</p>
+              <h1>搜索结果</h1>
+            </div>
+            <div class="toolbar">
+              <span class="chip is-cyan" id="queryChip">scenery rating:g</span>
+              <span class="chip">34 posts</span>
+              <span class="chip">remote: 2</span>
+            </div>
+          </header>
+
+          <div>
+            <form class="result-query-form" id="searchComposer" aria-label="搜索查询">
+              <input class="text-input" id="searchInput" type="text" value="scenery rating:g" autocomplete="off" spellcheck="false">
+              <input class="number-input" type="number" min="1" value="200" aria-label="加载数量">
+              <button class="solid-button" type="submit">搜索</button>
+            </form>
+            <div class="chip-row" style="margin-bottom: 12px;">
+              <span class="chip is-strong">scenery</span>
+              <span class="chip is-strong">rating:g</span>
+              <span class="chip is-cyan">landscape local</span>
+            </div>
+            <div class="filter-bar" aria-label="搜索筛选">
+              <label class="filter-select">
+                <span>级别</span>
+                <select aria-label="搜索级别">
+                  <option>G</option>
+                  <option>全部</option>
+                  <option>S</option>
+                  <option>Q</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>比例</span>
+                <select aria-label="搜索比例">
+                  <option>横图</option>
+                  <option>全部</option>
+                  <option>竖图</option>
+                  <option>方图</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>尺寸</span>
+                <select aria-label="搜索尺寸">
+                  <option>壁纸</option>
+                  <option>全部</option>
+                  <option>大图</option>
+                  <option>超清</option>
+                </select>
+              </label>
+              <label class="filter-select">
+                <span>排序</span>
+                <select aria-label="搜索排序">
+                  <option>得分</option>
+                  <option>默认</option>
+                  <option>收藏</option>
+                  <option>最新</option>
+                </select>
+              </label>
+            </div>
+            <div class="gallery" data-gallery="search"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-favorites" aria-label="收藏">
+          <header class="page-head home-head favorites-head">
+            <div>
+              <p class="eyebrow">favorites</p>
+              <h1>收藏</h1>
+            </div>
+            <div class="toolbar">
+              <span class="chip is-amber"><span class="favorite-count">3</span> saved</span>
+              <button class="soft-button" id="clearFavorites" type="button">清空</button>
+            </div>
+          </header>
+
+          <div class="filter-bar" aria-label="收藏筛选">
+            <label class="filter-select">
+              <span>集合</span>
+              <select aria-label="收藏集合">
+                <option>全部</option>
+                <option>壁纸</option>
+                <option>角色</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              <span>级别</span>
+              <select aria-label="收藏级别">
+                <option>全部</option>
+                <option>G</option>
+                <option>S</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              <span>排序</span>
+              <select aria-label="收藏排序">
+                <option>最近</option>
+                <option>得分</option>
+                <option>尺寸</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              <span>视图</span>
+              <select aria-label="收藏视图">
+                <option>舒适</option>
+                <option>紧凑</option>
+                <option>宽松</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="gallery" data-gallery="favorites"></div>
+          <div class="empty-state" id="favoritesEmpty" hidden>
+            <div>
+              <strong>还没有收藏</strong>
+              <p>在主页或搜索结果里点亮收藏按钮后，这里会作为独立图库展示。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-settings" aria-label="设置">
+          <header class="page-head home-head settings-head">
+            <div>
+              <p class="eyebrow">settings</p>
+              <h1>设置</h1>
+            </div>
+            <div class="toolbar">
+              <button class="solid-button" type="button">保存设置</button>
+            </div>
+          </header>
+
+          <div class="settings-grid">
+            <section class="settings-panel">
+              <div class="panel-stack">
+                <h2>默认检索</h2>
+                <label class="setting-row">
+                  <span><strong>默认加载数量</strong><p>打开主页与搜索时的目标图片数。</p></span>
+                  <input class="number-input" type="number" value="200" min="1" style="width: 88px;">
+                </label>
+                <label class="setting-row">
+                  <span><strong>默认 rating</strong><p>影响主页和新搜索的初始过滤。</p></span>
+                  <select class="select-input">
+                    <option>全部</option>
+                    <option>G 安全</option>
+                    <option>S 敏感</option>
+                  </select>
+                </label>
+                <label class="setting-row">
+                  <span><strong>默认排序</strong><p>主页保持 rank，搜索可选择返回顺序。</p></span>
+                  <select class="select-input">
+                    <option>Rank / Relevance</option>
+                    <option>Score</option>
+                    <option>Newest</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-panel">
+              <div class="panel-stack">
+                <h2>界面与本地状态</h2>
+                <div class="setting-row">
+                  <span><strong>图片密度</strong><p>影响网格宽度和元信息展示。</p></span>
+                  <div class="density-control" aria-label="图片密度">
+                    <button type="button">紧</button>
+                    <button class="is-active" type="button">舒</button>
+                    <button type="button">宽</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span><strong>记住 recent tags</strong><p>保留最近输入，用于搜索页建议。</p></span>
+                  <button class="switch is-on" type="button" aria-label="记住 recent tags"></button>
+                </div>
+                <div class="setting-row">
+                  <span><strong>本地缓存收藏</strong><p>用 localStorage 持久化收藏。</p></span>
+                  <button class="switch is-on" type="button" aria-label="本地缓存收藏"></button>
+                </div>
+                <div class="setting-row">
+                  <span><strong>紧凑动效</strong><p>减少页面切换与 hover 动效。</p></span>
+                  <button class="switch" type="button" aria-label="紧凑动效"></button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <nav class="mobile-nav" aria-label="移动端导航">
+        <button class="mobile-tab is-active" type="button" data-page="home"><span class="nav-icon icon-home"></span><span>主页</span></button>
+        <button class="mobile-tab" type="button" data-page="search"><span class="nav-icon icon-search"></span><span>搜索</span></button>
+        <button class="mobile-tab" type="button" data-page="favorites"><span class="nav-icon icon-fav"></span><span>收藏</span></button>
+        <button class="mobile-tab" type="button" data-page="settings"><span class="nav-icon icon-settings"></span><span>设置</span></button>
+      </nav>
+    </div>
+
+    <script>
+      const pages = {
+        home: document.querySelector("#page-home"),
+        search: document.querySelector("#page-search"),
+        favorites: document.querySelector("#page-favorites"),
+        settings: document.querySelector("#page-settings"),
+      };
+
+      const pageNames = {
+        home: "Discover",
+        search: "Search",
+        favorites: "Favorites",
+        settings: "Settings",
+      };
+
+      const postData = [
+        { id: 928341, rating: "G", score: 614, size: "2400 x 3200", tags: ["scenery", "soft_light"], favorite: true },
+        { id: 928342, rating: "S", score: 402, size: "1920 x 1080", tags: ["landscape", "clouds"], favorite: false },
+        { id: 928343, rating: "G", score: 355, size: "1800 x 2400", tags: ["portrait", "clean"], favorite: true },
+        { id: 928344, rating: "Q", score: 291, size: "3000 x 1688", tags: ["wide", "motion"], favorite: false },
+        { id: 928345, rating: "G", score: 248, size: "2048 x 2048", tags: ["square", "color"], favorite: false },
+        { id: 928346, rating: "S", score: 227, size: "2560 x 1440", tags: ["wallpaper", "night"], favorite: true },
+        { id: 928347, rating: "G", score: 184, size: "1728 x 2304", tags: ["figure", "studio"], favorite: false },
+        { id: 928348, rating: "G", score: 162, size: "3840 x 2160", tags: ["absurdres", "cyan"], favorite: false },
+      ];
+
+      const galleries = {
+        home: document.querySelector('[data-gallery="home"]'),
+        search: document.querySelector('[data-gallery="search"]'),
+        favorites: document.querySelector('[data-gallery="favorites"]'),
+      };
+
+      function createCard(post) {
+        const card = document.createElement("article");
+        card.className = "post-card";
+        card.dataset.id = post.id;
+        card.innerHTML = `
+          <div class="thumb">
+            <span class="rating">${post.rating}</span>
+            <button class="favorite ${post.favorite ? "is-on" : ""}" type="button" aria-label="切换收藏"></button>
+          </div>
+          <div class="post-meta">
+            <div class="post-title"><span>#${post.id}</span><span>${post.score}</span></div>
+            <div class="post-tags">
+              <span class="tag">${post.size}</span>
+              ${post.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}
+            </div>
+          </div>
+        `;
+        return card;
+      }
+
+      function renderGalleries() {
+        galleries.home.innerHTML = "";
+        galleries.search.innerHTML = "";
+        galleries.favorites.innerHTML = "";
+
+        postData.forEach((post) => galleries.home.append(createCard(post)));
+        postData.slice(0, 6).forEach((post) => galleries.search.append(createCard(post)));
+        postData.filter((post) => post.favorite).forEach((post) => galleries.favorites.append(createCard(post)));
+
+        const favoriteTotal = postData.filter((post) => post.favorite).length;
+        document.querySelectorAll(".favorite-count").forEach((item) => {
+          item.textContent = favoriteTotal;
+        });
+        document.querySelector("#favoritesEmpty").hidden = favoriteTotal > 0;
+      }
+
+      function setPage(nextPage) {
+        document.body.classList.toggle("is-home", nextPage === "home");
+        document.body.classList.toggle("is-search", nextPage === "search");
+        document.body.classList.toggle("is-favorites", nextPage === "favorites");
+        document.body.classList.toggle("is-settings", nextPage === "settings");
+        Object.entries(pages).forEach(([name, page]) => {
+          page.classList.toggle("is-active", name === nextPage);
+        });
+        document.querySelectorAll("[data-page]").forEach((button) => {
+          button.classList.toggle("is-active", button.dataset.page === nextPage);
+        });
+        document.querySelector("#mobileStatus").textContent = pageNames[nextPage];
+        document.querySelector(".main-area").scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      document.addEventListener("click", (event) => {
+        const pageButton = event.target.closest("[data-page]");
+        if (pageButton) {
+          setPage(pageButton.dataset.page);
+          return;
+        }
+
+        const favoriteButton = event.target.closest(".favorite");
+        if (favoriteButton) {
+          const id = Number(favoriteButton.closest(".post-card").dataset.id);
+          const post = postData.find((item) => item.id === id);
+          post.favorite = !post.favorite;
+          renderGalleries();
+          return;
+        }
+
+        const switchButton = event.target.closest(".switch");
+        if (switchButton) {
+          switchButton.classList.toggle("is-on");
+          return;
+        }
+
+        const densityButton = event.target.closest(".density-control button");
+        if (densityButton) {
+          densityButton.parentElement.querySelectorAll("button").forEach((button) => button.classList.remove("is-active"));
+          densityButton.classList.add("is-active");
+        }
+      });
+
+      document.querySelector("#quickSearch").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = document.querySelector("#quickInput").value.trim() || "scenery rating:g";
+        document.querySelector("#searchInput").value = value;
+        document.querySelector("#queryChip").textContent = value;
+        setPage("search");
+      });
+
+      document.querySelector("#searchComposer").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = document.querySelector("#searchInput").value.trim() || "scenery rating:g";
+        document.querySelector("#queryChip").textContent = value;
+      });
+
+      document.querySelector("#clearFavorites").addEventListener("click", () => {
+        postData.forEach((post) => {
+          post.favorite = false;
+        });
+        renderGalleries();
+      });
+
+      renderGalleries();
+    </script>
+  </body>
+</html>

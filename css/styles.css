@@ -2140,7 +2140,8 @@ body[data-density="wide"] .gallery {
 
   .app-shell {
     display: block;
-    min-height: 100dvh;
+    min-height: 100vh;
+    min-height: 100svh;
     overflow: hidden;
   }
 
@@ -2149,7 +2150,8 @@ body[data-density="wide"] .gallery {
   }
 
   .main-area {
-    height: calc(100dvh - 88px);
+    height: calc(100vh - 88px);
+    height: calc(100svh - 88px);
     min-height: 0;
     overflow: auto;
     padding: 14px 12px 24px;
@@ -2170,21 +2172,29 @@ body[data-density="wide"] .gallery {
     gap: 8px;
   }
 
-  .search-shell {
+  .search-head .search-shell {
     --search-field-height: 44px;
     min-width: 0;
-    min-height: var(--search-field-height);
+    min-height: 80px;
+    align-items: start;
     padding: 0;
   }
 
-  .query-row {
+  .search-head .query-row {
     min-width: 0;
+    min-height: 78px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 6px;
+    overflow: hidden;
+    padding: 0 0 6px;
   }
 
-  #tagInput {
+  .search-head #tagInput {
     width: auto;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 0 var(--search-field-height);
     font-size: 16px;
   }
 
@@ -2194,8 +2204,35 @@ body[data-density="wide"] .gallery {
     font-size: 16px;
   }
 
-  .selected-tags {
+  .search-head .selected-tags {
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+    flex: 0 0 28px;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .search-head .selected-tags::-webkit-scrollbar {
     display: none;
+  }
+
+  .search-head .selected-tags .input-chip {
+    max-width: 150px;
+    flex: 0 0 auto;
+  }
+
+  .search-head .search-shell .search-glyph {
+    align-self: start;
+  }
+
+  .search-head .search-shell .add-tag-button {
+    align-self: start;
+    margin-top: 5px;
   }
 
   .command-actions {
@@ -2203,6 +2240,7 @@ body[data-density="wide"] .gallery {
     width: 100%;
     min-width: 0;
     gap: 6px;
+    align-content: start;
   }
 
   #searchButton {

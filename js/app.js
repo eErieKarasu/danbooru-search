@@ -104,6 +104,7 @@ const FILTER_LABELS = {
 const DENSITY_VALUES = ["compact", "comfortable", "wide"];
 
 function setAppView(view) {
+  const previousView = currentView;
   currentView = view;
   isFavoritesView = view === "favorites";
   document.body.dataset.view = view;
@@ -128,7 +129,9 @@ function setAppView(view) {
     settingsSurface.hidden = view !== "settings";
   }
 
-  appShell?.querySelector(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  if (previousView !== view) {
+    appShell?.querySelector(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
 }
 
 function normalizeTag(tag) {

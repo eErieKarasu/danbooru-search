@@ -1809,6 +1809,7 @@ body:not([data-view="settings"]) .settings-workspace {
 
 .filter-rail {
   position: relative;
+  top: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;

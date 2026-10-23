@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="参考 Pexels 的 Danbooru 图片搜索设计原型。">
+  <title>danbooru — 发现下一张灵感</title>
+  <link rel="icon" href="../../assets/favicon.png">
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.8a5.5 5.5 0 0 0-7.8 0L12 7l-1-1.2a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="4" rx="1"/><rect x="4" y="15" width="6" height="5" rx="1"/><rect x="14" y="12" width="6" height="8" rx="1"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </defs></svg>
+
+  <header class="site-header">
+    <a href="./" class="brand" aria-label="danbooru 首页"><span class="brand-mark">db<span>.</span></span><span class="brand-word">danbooru<span>search & discover</span></span></a>
+    <nav class="header-nav" aria-label="主导航">
+      <button class="text-button" data-nav="discover" type="button">探索</button>
+      <button class="text-button" data-nav="favorites" type="button">我的收藏 <span class="favorite-count">0</span></button>
+      <span class="nav-divider"></span>
+      <button class="icon-button" id="settingsButton" type="button" aria-label="浏览设置"><svg><use href="#i-sliders"/></svg></button>
+      <button class="button button-dark header-search" id="focusSearch" type="button">开始搜索<svg><use href="#i-arrow"/></svg></button>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="intro" aria-labelledby="introTitle">
+      <div class="intro-heading"><div><p class="eyebrow"><span></span> A LITTLE DISCOVERY, EVERY DAY</p><h1 id="introTitle">下一张灵感，<br>从这里开始<span>。</span></h1></div><p class="intro-note">在喜欢的画面里，<br>找到新的可能。</p></div>
+      <form id="searchForm" class="search-form" role="search">
+        <span class="search-type"><svg><use href="#i-photo"/></svg>标签<span class="search-separator"></span></span>
+        <label class="sr-only" for="query">搜索作品标签</label>
+        <input id="query" name="query" type="search" autocomplete="off" spellcheck="false" placeholder="用标签寻找你喜欢的画面，例如：scenery sky" aria-describedby="searchHint">
+        <button type="submit" class="search-submit" aria-label="搜索"><svg><use href="#i-search"/></svg></button>
+      </form>
+      <div class="suggestion-row" id="searchHint"><span>找点灵感</span><button type="button" data-query="scenery">风景 <span>scenery</span></button><button type="button" data-query="sky">天空 <span>sky</span></button><button type="button" data-query="ocean">海边 <span>ocean</span></button><button type="button" data-query="night">夜色 <span>night</span></button><span class="hint-end">多个标签以空格分隔</span></div>
+    </section>
+
+    <section class="collections" aria-label="灵感专题">
+      <button type="button" class="collection collection-green" data-query="landscape"><div><span class="collection-label">换个角度看世界</span><h2>远山，近海。</h2><p>把目光交给自然 <svg><use href="#i-arrow"/></svg></p></div><div class="collection-art" aria-hidden="true"><img src="assets/scene-07.svg" alt=""><img src="assets/scene-01.svg" alt=""></div></button>
+      <button type="button" class="collection collection-sand" data-query="light"><div><span class="collection-label">收集日常的小美好</span><h2>光落下的地方。</h2><p>让思绪慢下来 <svg><use href="#i-arrow"/></svg></p></div><div class="collection-art" aria-hidden="true"><img src="assets/scene-06.svg" alt=""><img src="assets/scene-04.svg" alt=""></div></button>
+    </section>
+
+    <section class="browse" aria-labelledby="galleryTitle">
+      <div class="browse-nav"><nav class="view-tabs" aria-label="图库视图"><button type="button" class="view-tab is-active" data-view="discover" aria-pressed="true">发现</button><button type="button" class="view-tab" data-view="latest" aria-pressed="false">最新</button><button type="button" class="view-tab" data-view="favorites" aria-pressed="false">我的收藏<span class="favorite-count">0</span></button></nav><span class="demo-label"><span></span>设计原型 · 示例图库</span></div>
+      <div class="gallery-heading"><div class="gallery-title"><h2 id="galleryTitle">发现好作品</h2><span id="resultCount" aria-live="polite"></span></div><div class="gallery-tools"><label class="sort-control"><span class="sr-only">排序方式</span><select id="sort"><option value="popular">人气优先</option><option value="latest">最新发布</option><option value="oldest">最早发布</option></select><svg><use href="#i-chevron"/></svg></label><button type="button" class="icon-button density-button" id="densityButton" aria-label="切换为紧凑布局" aria-pressed="false"><svg><use href="#i-grid"/></svg></button></div></div>
+      <div class="filter-bar"><div class="filter-options"><label class="filter-pill"><span>评级</span><select id="rating" aria-label="评级"><option value="all">全部</option><option value="g">G 安全</option><option value="s">S 敏感</option><option value="q">Q 边缘</option><option value="e">E 限制</option></select><svg><use href="#i-chevron"/></svg></label><label class="filter-pill"><span>比例</span><select id="aspect" aria-label="图片比例"><option value="all">不限</option><option value="portrait">竖图</option><option value="landscape">横图</option></select><svg><use href="#i-chevron"/></svg></label><button id="resetFilters" class="reset-button" type="button" hidden>清除筛选 <svg><use href="#i-close"/></svg></button></div><p id="galleryHint">留一点时间，发现喜欢。</p></div>
+      <div id="queryChips" class="query-chips" aria-label="当前搜索标签" hidden></div>
+      <div id="gallery" class="gallery" aria-busy="false"></div>
+      <div id="emptyState" class="empty-state" hidden><svg><use href="#i-search"/></svg><h3 id="emptyTitle">暂时没有找到作品</h3><p id="emptyCopy">试试 scenery、sky、ocean，或调整筛选条件。</p><button type="button" id="emptyReset" class="button button-dark">重新发现</button></div>
+      <div class="gallery-end"><span></span><p>已经看完这组灵感了</p><span></span></div>
+    </section>
+    <footer><a class="footer-brand" href="./">danbooru<span> / </span>search & discover</a><p>12 幅本地原创示意插画 · 搜索与收藏仅用于原型演示</p><a href="../../index.html">返回当前正式页面 <span aria-hidden="true">↗</span></a></footer>
+  </main>
+
+  <dialog id="preview" aria-labelledby="previewTitle"><div class="preview-top"><span class="preview-brand">danbooru <span>/ 作品预览</span></span><button type="button" class="icon-button" id="closePreview" aria-label="关闭预览"><svg><use href="#i-close"/></svg></button></div><div class="preview-layout"><div class="preview-image-area"><img id="previewImage" alt=""><button class="preview-arrow previous" id="prevImage" type="button" aria-label="上一张">←</button><button class="preview-arrow next" id="nextImage" type="button" aria-label="下一张">→</button></div><aside class="preview-details"><p class="eyebrow">A MOMENT WORTH KEEPING</p><h2 id="previewTitle"></h2><p class="preview-caption">本地原创风景示意插画</p><button type="button" class="button button-dark" id="previewFavorite"><svg><use href="#i-heart"/></svg><span>收藏作品</span></button><dl><div><dt>画幅</dt><dd id="previewAspect"></dd></div><div><dt>评级</dt><dd>G · 安全</dd></div><div><dt>作品编号</dt><dd id="previewId"></dd></div></dl><h3>相关标签</h3><div id="previewTags" class="preview-tags"></div><p class="preview-footnote">示例内容用于查看界面效果，<br>正式版本可沿用现有 Danbooru 数据接口。</p><span id="previewPosition"></span></aside></div></dialog>
+  <dialog id="settings" aria-labelledby="settingsTitle"><div class="settings-header"><h2 id="settingsTitle">浏览设置</h2><button id="closeSettings" class="icon-button" type="button" aria-label="关闭设置"><svg><use href="#i-close"/></svg></button></div><p class="settings-intro">让图库更适合你的浏览习惯。</p><label class="setting-row" for="density"><span><strong>图库密度</strong><small>调整每行显示的作品数量</small></span><select id="density"><option value="comfortable">舒适</option><option value="compact">紧凑</option></select></label><label class="setting-row" for="showCaptions"><span><strong>作品标题</strong><small>在图片下方显示名称</small></span><input id="showCaptions" type="checkbox" checked></label><p class="settings-note">偏好仅保存在此原型中。</p><button type="button" class="button button-dark" id="doneSettings">完成</button></dialog>
+  <div id="toast" class="toast" role="status" hidden><svg><use href="#i-check"/></svg><span></span></div>
+  <script src="prototype.js" defer></script>
+</body>
+</html>

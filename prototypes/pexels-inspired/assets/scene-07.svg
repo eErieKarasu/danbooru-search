@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="880" viewBox="0 0 640 880">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d6d9c5"/><stop offset="1" stop-color="#f4e9c8"/></linearGradient><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".12"/></feComponentTransfer><feBlend in="SourceGraphic" mode="soft-light"/></filter></defs>
+<g filter="url(#grain)"><path fill="url(#sky)" d="M0 0h640v880H0z"/>
+<circle cx="435.20000000000005" cy="220.0" r="39.68" fill="#f4e9c8" opacity=".95"/>
+<path d="M531 180q58.8 -22 98.0 -9t98.0 9q-80 15 -196 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M414 317q78.89999999999999 -22 131.5 -9t131.5 9q-80 15 -263 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M433 254q80.1 -22 133.5 -9t133.5 9q-80 15 -267 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M365 85q26.7 -22 44.5 -9t44.5 9q-80 15 -89 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M73 246q33.9 -22 56.5 -9t56.5 9q-80 15 -113 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M167 98q36.9 -22 61.5 -9t61.5 9q-80 15 -123 0" fill="#f4e9c8" opacity=".35"/>
+<path d="M0 422.4H640V880H0Z" fill="#9bbab0"/>
+<path d="M-52 431.2h107" stroke="#f4e9c8" opacity=".22" stroke-width="1.5"/>
+<path d="M102 449.68h73" stroke="#f4e9c8" opacity=".22" stroke-width="1.3"/>
+<path d="M259 468.15999999999997h144" stroke="#f4e9c8" opacity=".22" stroke-width="2.5"/>
+<path d="M225 486.64h145" stroke="#f4e9c8" opacity=".22" stroke-width="2.3"/>
+<path d="M-44 505.12h100" stroke="#f4e9c8" opacity=".22" stroke-width="1.6"/>
+<path d="M-8 523.6h216" stroke="#f4e9c8" opacity=".22" stroke-width="2.4"/>
+<path d="M322 542.08h114" stroke="#f4e9c8" opacity=".22" stroke-width="1.9"/>
+<path d="M153 560.56h183" stroke="#f4e9c8" opacity=".22" stroke-width="2.6"/>
+<path d="M-47 579.04h129" stroke="#f4e9c8" opacity=".22" stroke-width="2.3"/>
+<path d="M391 597.52h74" stroke="#f4e9c8" opacity=".22" stroke-width="2.8"/>
+<path d="M506 616.0h73" stroke="#f4e9c8" opacity=".22" stroke-width="2.8"/>
+<path d="M-19 634.48h23" stroke="#f4e9c8" opacity=".22" stroke-width="2.5"/>
+<path d="M-3 652.96h28" stroke="#f4e9c8" opacity=".22" stroke-width="2.5"/>
+<path d="M305 671.44h155" stroke="#f4e9c8" opacity=".22" stroke-width="1.7"/>
+<path d="M140 689.9200000000001h29" stroke="#f4e9c8" opacity=".22" stroke-width="1.8"/>
+<path d="M44 708.4000000000001h62" stroke="#f4e9c8" opacity=".22" stroke-width="1.4"/>
+<path d="M448 726.88h99" stroke="#f4e9c8" opacity=".22" stroke-width="2.3"/>
+<path d="M573 745.36h63" stroke="#f4e9c8" opacity=".22" stroke-width="1.9"/>
+<path d="M435 763.84h137" stroke="#f4e9c8" opacity=".22" stroke-width="2.9"/>
+<path d="M77 782.3199999999999h139" stroke="#f4e9c8" opacity=".22" stroke-width="1.4"/>
+<path d="M209 800.8h39" stroke="#f4e9c8" opacity=".22" stroke-width="2.5"/>
+<path d="M333 819.28h31" stroke="#f4e9c8" opacity=".22" stroke-width="1.8"/>
+<path d="M-21 837.76h90" stroke="#f4e9c8" opacity=".22" stroke-width="1.3"/>
+<path d="M567 856.24h117" stroke="#f4e9c8" opacity=".22" stroke-width="1.5"/>
+<path d="M371 874.72h168" stroke="#f4e9c8" opacity=".22" stroke-width="1.5"/>
+<path d="M-20 352.0Q332.8 422.4 256.0 589.6T358.40000000000003 880H-20Z" fill="#3d6f65"/>
+<path d="M-20 360.79999999999995Q352.0 431.2 275.2 598.4000000000001T384.0 880h-26Q134.4 686.4 243.2 563.2T-20 369.59999999999997" fill="#f4e9c8" opacity=".9"/>
+</g></svg>

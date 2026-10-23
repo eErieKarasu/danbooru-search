@@ -13,7 +13,6 @@ const DEFAULT_TARGET_POSTS = 200;
 const DEFAULT_HOME_TAGS = ["order:rank"];
 const DEFAULT_DENSITY = "comfortable";
 
-const appShell = document.querySelector("#appShell");
 const navButtons = document.querySelectorAll("[data-view-button]");
 const viewPanels = document.querySelectorAll("[data-view-panel]");
 const gallerySurface = document.querySelector("#gallerySurface");
@@ -25,6 +24,7 @@ const countInput = document.querySelector("#countInput");
 const settingsCountInput = document.querySelector("#settingsCountInput");
 const settingsRatingSelect = document.querySelector("#settingsRatingSelect");
 const settingsSortSelect = document.querySelector("#settingsSortSelect");
+const settingsCaptionsInput = document.querySelector("#settingsCaptionsInput");
 const saveSettingsButton = document.querySelector("#saveSettingsButton");
 const searchButton = document.querySelector("#searchButton");
 const stopSearchButton = document.querySelector("#stopSearchButton");
@@ -37,7 +37,6 @@ const statusText = document.querySelector("#statusText");
 const resultCount = document.querySelector("#resultCount");
 const noticeBox = document.querySelector("#noticeBox");
 const emptyState = document.querySelector("#emptyState");
-const emptyStateIcon = emptyState.querySelector(".empty-search-line .search-glyph");
 const emptyStateTitle = emptyState.querySelector(".empty-copy p");
 const emptyStateDescription = emptyState.querySelector(".empty-copy span");
 const gallery = document.querySelector("#gallery");
@@ -64,7 +63,6 @@ const inspectorMode = document.querySelector("#inspectorMode");
 const inspectorResultCount = document.querySelector("#inspectorResultCount");
 const inspectorFavoriteCount = document.querySelector("#inspectorFavoriteCount");
 const inspectorTags = document.querySelector("#inspectorTags");
-const mobileGalleryQuery = window.matchMedia("(max-width: 820px)");
 const mobileFilterQuery = window.matchMedia("(max-width: 900px)");
 
 let activeController = null;
@@ -78,6 +76,11 @@ let isFavoritesView = false;
 let activePreviewIndex = -1;
 let activePreviewPost = null;
 let previewScrollY = 0;
+let restorePreviewScroll = true;
+let renderedColumnCount = 0;
+let resizeFrame = 0;
+let toastTimer = 0;
+let lastSearch = null;
 let defaultRating = DEFAULT_RATING;
 let filterState = {
   rating: "any",
@@ -104,7 +107,6 @@ const FILTER_LABELS = {
 const DENSITY_VALUES = ["compact", "comfortable", "wide"];
 
 function setAppView(view) {
-  const previousView = currentView;
   currentView = view;
   isFavoritesView = view === "favorites";
   document.body.dataset.view = view;
@@ -112,7 +114,7 @@ function setAppView(view) {
   navButtons.forEach((button) => {
     const isActive = button.dataset.viewButton === view;
     button.classList.toggle("is-active", isActive);
-    if (button.id === "showFavoritesButton") {
+    if (button.matches(".view-tab, #showFavoritesButton")) {
       button.setAttribute("aria-pressed", String(isActive));
     }
   });
@@ -129,9 +131,25 @@ function setAppView(view) {
     settingsSurface.hidden = view !== "settings";
   }
 
-  if (previousView !== view) {
-    appShell?.querySelector(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }
+  document.querySelector("#galleryTitle").textContent = {
+    home: "发现好作品", search: "搜索结果", favorites: "我的收藏",
+  }[view] || "发现好作品";
+  closeFilterControls();
+}
+
+function scrollToSection(section) {
+  section?.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    block: "start",
+  });
+}
+
+function showToast(message) {
+  const toast = document.querySelector("#toast");
+  window.clearTimeout(toastTimer);
+  toast.textContent = message;
+  toast.hidden = false;
+  toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2400);
 }
 
 function normalizeTag(tag) {
@@ -446,7 +464,7 @@ async function searchPosts(tags, options, signal, onProgress = () => {}) {
       page: String(page),
     });
 
-    setStatus(`请求远程第 ${page} 页：${remoteQuery}；已收集 ${collectedCount}/${options.maxDisplayPosts} 张`);
+    setStatus(`正在加载第 ${page} 组作品 · 已找到 ${collectedCount} / ${options.maxDisplayPosts} 张`);
     setProgress(Math.min((collectedCount / options.maxDisplayPosts) * 88, 88));
 
     const pagePosts = await fetchJsonWithRetry(
@@ -558,9 +576,12 @@ function renderDialogTags(post) {
   const fragment = document.createDocumentFragment();
 
   previewTags.forEach((tag) => {
-    const chip = document.createElement("span");
+    const chip = document.createElement("button");
+    chip.type = "button";
     chip.className = "dialog-tag-chip";
     chip.textContent = tag;
+    chip.setAttribute("aria-label", `搜索标签 ${tag}`);
+    chip.addEventListener("click", () => startTagSearch([tag]));
     fragment.append(chip);
   });
 
@@ -643,8 +664,9 @@ function readFavorites() {
 function writeFavorites() {
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(favoritePosts.values())));
+    return true;
   } catch {
-    // Ignore storage failures; the current search and preview should keep working.
+    return false;
   }
 }
 
@@ -676,6 +698,7 @@ function normalizeSettings(rawSettings = {}) {
     density: DENSITY_VALUES.includes(rawSettings.density)
       ? rawSettings.density
       : DEFAULT_DENSITY,
+    showCaptions: rawSettings.showCaptions !== false,
   };
 }
 
@@ -698,6 +721,7 @@ function getCurrentSettings() {
     defaultRating,
     filterState,
     density: document.body.dataset.density || DEFAULT_DENSITY,
+    showCaptions: settingsCaptionsInput.checked,
   });
 }
 
@@ -707,6 +731,8 @@ function applySettings(settings) {
   defaultRating = normalizedSettings.defaultRating;
   filterState = { ...filterState, ...normalizedSettings.filterState };
   document.body.dataset.density = normalizedSettings.density;
+  document.body.dataset.captions = normalizedSettings.showCaptions ? "visible" : "hidden";
+  settingsCaptionsInput.checked = normalizedSettings.showCaptions;
   countInput.value = String(normalizedSettings.targetCount);
 
   if (settingsCountInput) {
@@ -719,14 +745,16 @@ function applySettings(settings) {
 
   document.querySelectorAll(".density-button").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.density === normalizedSettings.density);
+    button.setAttribute("aria-pressed", String(button.dataset.density === normalizedSettings.density));
   });
 }
 
 function writeSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(getCurrentSettings()));
+    return true;
   } catch {
-    // Settings are convenience defaults; the app remains usable without storage.
+    return false;
   }
 }
 
@@ -847,7 +875,8 @@ function toggleFavorite(post) {
     }
   }
 
-  writeFavorites();
+  const persisted = writeFavorites();
+  showToast(`${favoritePosts.has(key) ? "已加入我的收藏" : "已移出收藏"}${persisted ? "" : "（仅本次浏览有效）"}`);
   renderFavoriteSummary();
 
   if (isFavoritesView) {
@@ -985,8 +1014,8 @@ function getPendingTags() {
   return uniqueTags([...selectedTags, ...parseTags(tagInput.value)]);
 }
 
-function shouldUseMobileMasonry() {
-  return mobileGalleryQuery.matches && !gallery.classList.contains("is-list");
+function getGalleryColumnCount() {
+  return Math.max(1, parseInt(window.getComputedStyle(gallery).getPropertyValue("--gallery-columns"), 10) || 4);
 }
 
 function createPostCard(post, index) {
@@ -1009,14 +1038,22 @@ function createPostCard(post, index) {
   node.classList.toggle("is-favorite", favoritePosts.has(getPostKey(post)));
   image.src = previewUrl;
   image.alt = `Danbooru post ${post.id}`;
+  imageButton.setAttribute("aria-label", `预览作品 #${post.id}`);
+  image.addEventListener("error", () => {
+    image.hidden = true;
+    imageButton.classList.add("is-error");
+    node.querySelector(".image-error").hidden = false;
+  }, { once: true });
+  node.querySelector(".post-artist").textContent = String(post.tag_string_artist || "未标注作者").replaceAll("_", " ");
+  node.querySelector(".post-caption-id").textContent = `${String(post.rating || "?").toUpperCase()} / ${post.id}`;
   ratingBadge.textContent = formatRating(post.rating);
   ratingBadge.classList.add(`rating-${post.rating || "unknown"}`);
-  scoreLabel.textContent = `score ${post.score ?? 0}`;
+  scoreLabel.textContent = `得分 ${post.score ?? 0}`;
   if (postSize) {
     postSize.textContent = size ? `${size.width}x${size.height}` : "-";
   }
   if (favoriteCountLabel) {
-    favoriteCountLabel.textContent = `fav ${getFavoriteCount(post)}`;
+    favoriteCountLabel.textContent = `收藏 ${getFavoriteCount(post)}`;
   }
   postId.textContent = `#${post.id}`;
   tags.textContent = getTagSummary(post) || `post ${post.id}`;
@@ -1033,28 +1070,18 @@ function createPostCard(post, index) {
   return node;
 }
 
-function renderFlatGallery(posts) {
-  const fragment = document.createDocumentFragment();
-
-  posts.forEach((post, index) => {
-    fragment.append(createPostCard(post, index));
-  });
-
-  gallery.append(fragment);
-}
-
-function renderMobileMasonry(posts) {
-  const columns = [document.createElement("div"), document.createElement("div")];
-  const columnHeights = [0, 0];
+function renderMasonry(posts, count) {
+  const columns = Array.from({ length: count }, () => document.createElement("div"));
+  const columnHeights = Array(count).fill(0);
 
   columns.forEach((column) => {
     column.className = "gallery-column";
   });
 
   posts.forEach((post, index) => {
-    const targetColumn = columnHeights[0] <= columnHeights[1] ? 0 : 1;
+    const targetColumn = columnHeights.indexOf(Math.min(...columnHeights));
     columns[targetColumn].append(createPostCard(post, index));
-    columnHeights[targetColumn] += 1 / Math.max(getPostAspectRatio(post), 0.1);
+    columnHeights[targetColumn] += 1 / Math.max(getPostAspectRatio(post), 0.1) + .15;
   });
 
   gallery.append(...columns);
@@ -1062,17 +1089,13 @@ function renderMobileMasonry(posts) {
 
 function renderGallery() {
   gallery.replaceChildren();
-  gallery.classList.toggle("is-mobile-masonry", shouldUseMobileMasonry());
+  renderedColumnCount = getGalleryColumnCount();
 
   if (allPosts.length === 0) {
     return;
   }
 
-  if (shouldUseMobileMasonry()) {
-    renderMobileMasonry(allPosts);
-  } else {
-    renderFlatGallery(allPosts);
-  }
+  renderMasonry(allPosts, renderedColumnCount);
 
   if (activePreviewIndex >= 0) {
     setSelectedPost(activePreviewIndex);
@@ -1102,17 +1125,17 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
   if (resetPage) {
     activePreviewIndex = -1;
   }
-  const useCompactEmptyState = ["favorites", "search"].includes(currentView) && filteredPosts.length === 0;
-  emptyState.classList.toggle("is-compact", useCompactEmptyState);
   emptyState.hidden = filteredPosts.length > 0;
+  document.querySelector("#galleryEnd").hidden = filteredPosts.length === 0 || document.body.classList.contains("is-loading");
+  document.querySelector("#emptyResetButton").hidden = posts.length === 0 || filteredPosts.length > 0;
 
   if (filteredPosts.length === 0) {
     if (showEmptyResult) {
       if (posts.length === 0) {
         const emptyCopy = {
-          home: ["主页暂时没有可显示图片。", "稍后重试 order:rank，或切到搜索页输入 tag。"],
-          search: ["暂无搜索结果", ""],
-          favorites: ["暂无收藏。", ""],
+          home: ["暂时没有找到作品", "试试搜索标签，或稍后重新发现。"],
+          search: ["暂时没有找到作品", "换一组标签，再找找喜欢的画面。"],
+          favorites: ["喜欢的画面，留在这里", "点击作品上的爱心，建立自己的灵感收藏。"],
         }[currentView] || ["没有可显示的图片。", "换一个入口继续查看。"];
 
         setEmptyStateCopy(
@@ -1121,14 +1144,14 @@ function renderPosts(posts, { resetPage = true, showEmptyResult = true } = {}) {
         );
       } else {
         const filteredEmptyCopy = currentView === "favorites"
-          ? ["当前收藏没有匹配筛选。", ""]
-          : ["暂无搜索结果", ""];
+          ? ["收藏中暂时没有匹配的作品", "调整评级、比例或尺寸，看看其他作品。"]
+          : ["暂时没有匹配的作品", "调整筛选条件，发现更多可能。"];
 
         setEmptyStateCopy(filteredEmptyCopy[0], filteredEmptyCopy[1]);
       }
     }
     renderGallery();
-    setCount(0);
+    setCount(0, posts.length);
     return;
   }
 
@@ -1155,8 +1178,7 @@ function showFavoritePosts({ resetPage = true } = {}) {
 
   if (favorites.length === 0) {
     emptyState.hidden = false;
-    emptyState.classList.add("is-compact");
-    setEmptyStateCopy("暂无收藏。", "");
+    setEmptyStateCopy("喜欢的画面，留在这里", "点击作品上的爱心，建立自己的灵感收藏。");
     setStatus("暂无收藏");
   } else {
     updateViewStatus({ force: true });
@@ -1188,8 +1210,7 @@ function restoreSearchPosts() {
     setInspectorMode("结果浏览");
   } else {
     emptyState.hidden = false;
-    emptyState.classList.add("is-compact");
-    setEmptyStateCopy("暂无搜索结果", "");
+    setEmptyStateCopy("从一个标签开始", "输入标签并按回车，寻找你喜欢的作品。");
     setStatus("等待输入 tag");
     setInspectorMode("待检索");
   }
@@ -1240,11 +1261,13 @@ function updatePreview(post, index) {
   setSelectedPost(index);
   dialogTitle.textContent = `Post #${post.id}`;
   dialogImage.src = largeUrl;
+  dialogImage.hidden = false;
+  document.querySelector("#dialogImageError").hidden = true;
   dialogImage.alt = `Danbooru post ${post.id}`;
   dialogRatingBadge.className = `dialog-rating-pill rating-${post.rating || "unknown"}`;
   dialogRatingBadge.textContent = formatRating(post.rating);
   if (dialogRatingText) {
-    dialogRatingText.textContent = post.rating || "-";
+    dialogRatingText.textContent = formatRating(post.rating);
   }
   if (dialogPosition) {
     dialogPosition.textContent = `${index + 1} / ${allPosts.length || 1}${isFavoritesView ? " · 收藏" : ""}`;
@@ -1266,6 +1289,7 @@ function openPreview(index) {
   }
 
   previewScrollY = window.scrollY;
+  restorePreviewScroll = true;
   activePreviewIndex = index;
   updatePreview(post, index);
   document.body.classList.add("dialog-open");
@@ -1339,6 +1363,8 @@ function updateFilterLabels() {
   if (settingsSortSelect) {
     settingsSortSelect.value = filterState.sort;
   }
+  document.querySelector("#resetFiltersButton").hidden =
+    filterState.rating === "any" && filterState.aspect === "all" && filterState.size === "all" && filterState.sort === "relevance";
 }
 
 function updateViewStatus({ force = false } = {}) {
@@ -1359,7 +1385,7 @@ function updateViewStatus({ force = false } = {}) {
   }
 
   if (currentView === "home") {
-    setStatus(sourceCount > 0 ? `热门 · ${visibleCount} / ${sourceCount} 张` : "正在加载热门");
+    setStatus(sourceCount > 0 ? `热门 · ${visibleCount} / ${sourceCount} 张` : "暂时没有热门作品");
     setInspectorMode("主页热门");
     return;
   }
@@ -1368,7 +1394,7 @@ function updateViewStatus({ force = false } = {}) {
     setStatus(`筛选完成 · ${visibleCount} / ${sourceCount} 张`);
     setInspectorMode("结果浏览");
   } else {
-    setStatus("等待输入 tag");
+    setStatus(getPendingTags().length > 0 ? "暂时没有匹配的作品" : "等待输入标签");
     setInspectorMode("待检索");
   }
 }
@@ -1429,13 +1455,10 @@ function showNotice(message) {
 function hideNotice() {
   noticeBox.textContent = "";
   noticeBox.hidden = true;
+  document.querySelector("#retryButton").hidden = true;
 }
 
 function setEmptyStateCopy(title, description) {
-  if (emptyStateIcon) {
-    emptyStateIcon.textContent = "";
-  }
-
   if (emptyStateTitle) {
     emptyStateTitle.textContent = title;
   }
@@ -1451,6 +1474,8 @@ function setLoading(isLoading) {
   stopSearchButton.hidden = !isLoading;
   stopSearchButton.disabled = !isLoading;
   stopSearchButton.textContent = "停止";
+  gallery.setAttribute("aria-busy", String(isLoading));
+  document.querySelector("#galleryEnd").hidden = isLoading || allPosts.length === 0;
 }
 
 function getOptions() {
@@ -1479,8 +1504,7 @@ async function runSearch(tags, { saveToHistory = true, source = "search" } = {})
   }
 
   const options = getOptions();
-  const { remoteTags, localTags } = splitRemoteAndLocalTags(tags, options.maxRemoteTags);
-
+  lastSearch = { tags: [...tags], saveToHistory, source };
   setAppView(source);
   if (source === "home") {
     homePostsCache = [];
@@ -1502,16 +1526,17 @@ async function runSearch(tags, { saveToHistory = true, source = "search" } = {})
   gallery.replaceChildren();
   setCount(0);
   emptyState.hidden = false;
+  document.querySelector("#emptyResetButton").hidden = true;
   setEmptyStateCopy(
     "正在搜索...",
-    `${remoteTags.join(" ")} · ${localTags.join(" ") || "无本地过滤"} · 目标 ${options.targetCount} 张`
+    `正在寻找相关作品，目标 ${options.targetCount} 张。`
   );
   setStatus(
-    `远程 tag：${remoteTags.join(" ")}；本地过滤：${localTags.join(" ") || "无"}；评级：All`
+    `正在寻找作品 · 评级：${RATING_LABELS[options.rating]}`
   );
 
   try {
-    const posts = await searchPosts(tags, options, controller.signal, (partialPosts, page) => {
+    const posts = await searchPosts(tags, options, controller.signal, (partialPosts) => {
       if (activeController !== controller) {
         return;
       }
@@ -1525,7 +1550,7 @@ async function runSearch(tags, { saveToHistory = true, source = "search" } = {})
 
       if (partialPosts.length > 0) {
         setStatus(
-          `已显示 ${allPosts.length.toLocaleString("zh-CN")} / ${options.maxDisplayPosts.toLocaleString("zh-CN")} 张，继续请求远程第 ${page + 1} 页`
+          `已找到 ${allPosts.length.toLocaleString("zh-CN")} 张作品，继续加载…`
         );
       }
     });
@@ -1562,10 +1587,12 @@ async function runSearch(tags, { saveToHistory = true, source = "search" } = {})
         setEmptyStateCopy("搜索已停止。", "可以调整 tag 后重新搜索。");
       }
     } else {
-      showNotice(error.message || "请求失败，请稍后重试。");
-      setStatus("请求失败");
+      showNotice(error instanceof TypeError ? "无法连接 Danbooru，请检查网络连接后重试。" : error.message || "请求失败，请稍后重试。");
+      setStatus(allPosts.length > 0 ? `请求中断，已保留 ${allPosts.length} 张作品` : "请求失败");
       setInspectorMode("请求失败");
       setEmptyStateCopy("没有可显示的结果。", "请检查网络或稍后重试。");
+      emptyState.hidden = allPosts.length > 0;
+      document.querySelector("#retryButton").hidden = false;
     }
   } finally {
     if (activeController === controller) {
@@ -1590,6 +1617,7 @@ searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   commitInputTags();
   runSearch(selectedTags, { source: "search" });
+  if (selectedTags.length > 0) scrollToSection(gallerySurface);
 });
 
 tagInput.addEventListener("keydown", (event) => {
@@ -1597,12 +1625,13 @@ tagInput.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "Enter" && tagInput.value.trim() === "" && selectedTags.length > 0) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    searchForm.requestSubmit();
     return;
   }
 
   if (
-    event.key === "Enter" ||
     event.key === "," ||
     event.key === ";" ||
     (event.key === " " && tagInput.value.trim() !== "")
@@ -1617,15 +1646,6 @@ tagInput.addEventListener("keydown", (event) => {
     renderCurrentTags(getPendingTags(), getOptions().maxRemoteTags);
   }
 
-  if (previewDialog.open && event.key === "ArrowLeft") {
-    event.preventDefault();
-    movePreview(-1);
-  }
-
-  if (previewDialog.open && event.key === "ArrowRight") {
-    event.preventDefault();
-    movePreview(1);
-  }
 });
 
 tagInput.addEventListener("input", () => {
@@ -1643,6 +1663,8 @@ stopSearchButton.addEventListener("click", () => {
 clearButton.addEventListener("click", () => {
   if (activeController) {
     activeController.abort();
+    activeController = null;
+    setLoading(false);
   }
 
   selectedTags = [];
@@ -1661,8 +1683,9 @@ clearButton.addEventListener("click", () => {
   setStatus("等待输入 tag");
   setInspectorMode("待检索");
   emptyState.hidden = false;
-  emptyState.classList.add("is-compact");
-  setEmptyStateCopy("暂无搜索结果", "");
+  document.querySelector("#galleryEnd").hidden = true;
+  document.querySelector("#emptyResetButton").hidden = true;
+  setEmptyStateCopy("从一个标签开始", "输入标签并按回车，寻找你喜欢的作品。");
   tagInput.focus();
 });
 
@@ -1697,6 +1720,28 @@ function openView(view) {
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
     openView(button.dataset.viewButton);
+    if (button.closest(".view-tabs") || button.dataset.viewButton === "favorites") scrollToSection(gallerySurface);
+    else window.scrollTo({ top: 0, behavior: "instant" });
+  });
+});
+
+function startTagSearch(tags) {
+  restorePreviewScroll = false;
+  if (previewDialog.open) previewDialog.close();
+  setTags(tags);
+  runSearch(selectedTags, { source: "search" });
+  scrollToSection(gallerySurface);
+}
+
+document.querySelectorAll("[data-search-tags]").forEach((button) => {
+  button.addEventListener("click", () => startTagSearch(parseTags(button.dataset.searchTags)));
+});
+
+document.querySelectorAll("[data-focus-search]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!["home", "search"].includes(currentView)) restoreSearchPosts();
+    tagInput.focus({ preventScroll: true });
+    scrollToSection(document.querySelector(".intro"));
   });
 });
 
@@ -1778,15 +1823,13 @@ function positionFilterMenu(control) {
   }
 
   const trigger = control.querySelector(".filter-trigger");
-  const rail = control.closest(".filter-rail");
   const triggerRect = trigger?.getBoundingClientRect();
-  const railRect = rail?.getBoundingClientRect();
-  const railWidth = railRect?.width ?? window.innerWidth;
-  const menuWidth = Math.min(menu.offsetWidth || 168, Math.max(railWidth, 0));
-  const maxLeft = Math.max(0, railWidth - menuWidth);
-  const desiredLeft = (triggerRect?.left ?? railRect?.left ?? 0) - (railRect?.left ?? 0);
-  const left = Math.min(Math.max(desiredLeft, 0), maxLeft);
-  const top = (triggerRect?.bottom ?? railRect?.top ?? 0) - (railRect?.top ?? 0) + 7;
+  const menuWidth = Math.min(menu.offsetWidth || 130, window.innerWidth - 32);
+  const left = Math.max(16, Math.min(triggerRect.left, window.innerWidth - menuWidth - 16));
+  const below = triggerRect.bottom + 7;
+  const top = below + menu.offsetHeight <= window.innerHeight - 16
+    ? below
+    : Math.max(16, triggerRect.top - menu.offsetHeight - 7);
 
   menu.style.setProperty("--filter-menu-left", `${Math.round(left)}px`);
   menu.style.setProperty("--filter-menu-top", `${Math.round(top)}px`);
@@ -1829,7 +1872,44 @@ document.querySelectorAll(".filter-option").forEach((option) => {
     closeFilterControl(option.closest(".filter-control"));
     updateFilterLabels();
     refreshCurrentView({ resetPage: true, forceStatus: true });
+    option.closest(".filter-control").querySelector(".filter-trigger").focus({ preventScroll: true });
   });
+});
+
+document.querySelectorAll(".filter-control").forEach((control) => {
+  control.addEventListener("keydown", (event) => {
+    const trigger = control.querySelector(".filter-trigger");
+    const options = Array.from(control.querySelectorAll(".filter-option"));
+    if (event.key === "Escape") {
+      closeFilterControl(control);
+      trigger.focus({ preventScroll: true });
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Tab") { closeFilterControl(control); return; }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    if (!control.classList.contains("open")) trigger.click();
+    const index = options.indexOf(document.activeElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
+      : index < 0 ? Math.max(0, options.findIndex((option) => option.classList.contains("active")))
+      : (index + (event.key === "ArrowUp" ? -1 : 1) + options.length) % options.length;
+    options[next]?.focus({ preventScroll: true });
+  });
+  control.addEventListener("focusout", (event) => {
+    if (!control.contains(event.relatedTarget)) closeFilterControl(control);
+  });
+});
+
+function resetFilters() {
+  filterState = { rating: "any", aspect: "all", size: "all", sort: "relevance" };
+  updateFilterLabels();
+  refreshCurrentView({ resetPage: true, forceStatus: true });
+}
+document.querySelector("#resetFiltersButton").addEventListener("click", resetFilters);
+document.querySelector("#emptyResetButton").addEventListener("click", resetFilters);
+document.querySelector("#retryButton").addEventListener("click", () => {
+  if (lastSearch) runSearch(lastSearch.tags, lastSearch);
 });
 
 settingsCountInput?.addEventListener("input", () => {
@@ -1859,23 +1939,23 @@ settingsSortSelect?.addEventListener("change", () => {
 document.querySelectorAll(".density-button").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".density-button").forEach((item) => {
-      item.classList.toggle("is-active", item === button);
+      item.classList.toggle("is-active", item.dataset.density === button.dataset.density);
+      item.setAttribute("aria-pressed", String(item.dataset.density === button.dataset.density));
     });
     document.body.dataset.density = button.dataset.density || "comfortable";
     renderGallery();
   });
 });
 
-document.querySelectorAll(".switch").forEach((button) => {
-  button.addEventListener("click", () => {
-    button.classList.toggle("is-on");
-  });
+settingsCaptionsInput.addEventListener("change", () => {
+  document.body.dataset.captions = settingsCaptionsInput.checked ? "visible" : "hidden";
 });
 
 saveSettingsButton?.addEventListener("click", () => {
-  writeSettings();
+  const persisted = writeSettings();
   setInspectorMode("设置已保存");
-  acknowledgeSettingsSaved();
+  if (persisted) acknowledgeSettingsSaved();
+  showToast(persisted ? "浏览设置已保存" : "浏览器无法保存设置，本次浏览仍可使用");
 });
 
 document.addEventListener("click", (event) => {
@@ -1885,17 +1965,24 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("resize", () => {
+  window.cancelAnimationFrame(resizeFrame);
+  resizeFrame = window.requestAnimationFrame(() => {
+    if (getGalleryColumnCount() !== renderedColumnCount) renderGallery();
+  });
   document.querySelectorAll(".filter-control.open").forEach(positionFilterMenu);
 });
-
-document.querySelectorAll(".view-button").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".view-button").forEach((item) => {
-      item.classList.toggle("is-active", item === button);
-    });
-    gallery.classList.toggle("is-list", button.getAttribute("aria-label") === "列表视图");
-    renderGallery();
+window.addEventListener("scroll", () => {
+  document.querySelectorAll(".filter-control.open").forEach((control) => {
+    const rect = control.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) closeFilterControl(control);
+    else positionFilterMenu(control);
   });
+}, { passive: true });
+
+dialogImage.addEventListener("error", () => {
+  if (!previewDialog.open) return;
+  dialogImage.hidden = true;
+  document.querySelector("#dialogImageError").hidden = false;
 });
 
 dialogPrevButton?.addEventListener("click", () => {
@@ -1925,8 +2012,11 @@ previewDialog.addEventListener("close", () => {
   dialogFavoriteButton.removeAttribute("data-favorite-post-id");
   activePreviewPost = null;
 
+  const shouldRestoreScroll = restorePreviewScroll;
   window.requestAnimationFrame(() => {
-    window.scrollTo({ top: previewScrollY, left: 0, behavior: "auto" });
+    if (shouldRestoreScroll) {
+      window.scrollTo({ top: previewScrollY, left: 0, behavior: "auto" });
+    }
   });
 });
 
@@ -1945,12 +2035,6 @@ window.addEventListener("keydown", (event) => {
     movePreview(1);
   }
 });
-
-if (typeof mobileGalleryQuery.addEventListener === "function") {
-  mobileGalleryQuery.addEventListener("change", renderGallery);
-} else {
-  mobileGalleryQuery.addListener(renderGallery);
-}
 
 favoritePosts = readFavorites();
 applySettings(readSettings());

@@ -3,121 +3,85 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>danbooru-search</title>
-    <meta
-      name="description"
-      content="匿名 Danbooru 图片筛选与整理工作流，支持多 tag 输入、本地筛选、收藏和图片审阅。"
-    >
+    <meta name="theme-color" content="#ffffff">
+    <title>danbooru — 发现下一张灵感</title>
+    <meta name="description" content="发现喜欢的 Danbooru 作品，支持多标签检索、图片筛选、本地收藏与大图预览。">
     <link rel="icon" type="image/png" href="assets/favicon.png?v=20260521">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260521">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260521">
     <meta name="apple-mobile-web-app-title" content="danbooru-search">
-    <link rel="stylesheet" href="css/styles.css?v=20260802-filter-layout">
+    <link rel="stylesheet" href="css/styles.css?v=20261023-discover">
   </head>
-  <body>
+  <body data-view="home">
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.8a5.5 5.5 0 0 0-7.8 0L12 7l-1-1.2a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="4" rx="1"/><rect x="4" y="15" width="6" height="5" rx="1"/><rect x="14" y="12" width="6" height="8" rx="1"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </defs></svg>
+
+    <a class="skip-link" href="#gallerySurface">跳转到图库</a>
     <div class="app-shell" id="appShell">
-      <aside class="side-nav" aria-label="主导航">
-        <div class="brand" aria-labelledby="appTitle">
-          <span class="brand-mark">db</span>
-          <span><span class="brand-accent">danbooru</span><span id="appTitle">-search</span></span>
-        </div>
-        <nav class="nav-list" aria-label="页面">
-          <button class="nav-button is-active" data-view-button="home" type="button">
-            <span class="nav-icon icon-home" aria-hidden="true"></span>
-            <span>主页</span>
-            <span class="nav-meta">rank</span>
-          </button>
-          <button class="nav-button" data-view-button="search" type="button">
-            <span class="nav-icon icon-search" aria-hidden="true"></span>
-            <span>搜索</span>
-            <span class="nav-meta">tags</span>
-          </button>
-          <button class="nav-button" id="showFavoritesButton" data-view-button="favorites" type="button" aria-pressed="false">
-            <span class="nav-icon icon-fav" aria-hidden="true"></span>
-            <span>收藏</span>
-            <span class="nav-meta badge" id="favoriteSummary">0</span>
-          </button>
-          <button class="nav-button" data-view-button="settings" type="button">
-            <span class="nav-icon icon-settings" aria-hidden="true"></span>
-            <span>设置</span>
-          </button>
+      <header class="site-header">
+        <button class="brand" data-view-button="home" type="button" aria-label="danbooru 首页">
+          <span class="brand-mark">db<span>.</span></span>
+          <span class="brand-word">danbooru<span>search &amp; discover</span></span>
+        </button>
+        <nav class="header-nav" aria-label="主导航">
+          <button class="text-button" data-view-button="home" type="button">探索</button>
+          <button class="text-button" id="showFavoritesButton" data-view-button="favorites" type="button" aria-pressed="false">我的收藏 <span class="badge" id="favoriteSummary">0</span></button>
+          <span class="nav-divider" aria-hidden="true"></span>
+          <button class="icon-button" data-view-button="settings" type="button" aria-label="浏览设置"><svg aria-hidden="true"><use href="#i-sliders"/></svg></button>
+          <button class="solid-button header-search" data-focus-search type="button">开始搜索 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
         </nav>
-      </aside>
-
+      </header>
       <main class="main-area">
-        <section class="view-head is-active" data-view-panel="home" aria-label="主页">
-          <div>
-            <p class="eyebrow">order:rank</p>
-            <h1>热门</h1>
+        <section class="intro" aria-label="寻找灵感">
+          <div class="intro-heading">
+            <div class="view-head is-active" data-view-panel="home"><p class="eyebrow"><span></span>A LITTLE DISCOVERY, EVERY DAY</p><h1>下一张灵感，<br>从这里开始<span>。</span></h1></div>
+            <div class="view-head" data-view-panel="search"><p class="eyebrow"><span></span>FIND YOUR NEXT INSPIRATION</p><h1>找到心里的那幅画<span>。</span></h1></div>
+            <p class="intro-note">在喜欢的画面里，<br>找到新的可能。</p>
           </div>
-        </section>
-
-        <section class="view-head search-head" data-view-panel="search" aria-label="搜索">
-          <div>
-            <p class="eyebrow">search</p>
-            <h1>搜索结果</h1>
-          </div>
-          <form class="command-bar" id="searchForm" aria-label="tag command bar">
-            <section class="search-shell" id="tagComposer" aria-label="tag search">
-              <span class="search-glyph" aria-hidden="true"></span>
+          <form class="command-bar" id="searchForm" role="search" aria-label="标签搜索">
+            <div class="search-shell" id="tagComposer">
+              <span class="search-type"><svg aria-hidden="true"><use href="#i-photo"/></svg>标签</span>
               <div class="query-row">
-                <input
-                  id="tagInput"
-                  name="tags"
-                  type="text"
-                  autocomplete="off"
-                  spellcheck="false"
-                  placeholder="tag search"
-                  aria-label="tag search"
-                >
                 <div class="selected-tags" id="selectedTags"></div>
+                <label class="sr-only" for="tagInput">搜索作品标签</label>
+                <input id="tagInput" name="tags" type="text" autocomplete="off" spellcheck="false" placeholder="用标签寻找你喜欢的画面，例如 scenery sky" aria-describedby="searchHint">
               </div>
-              <button class="add-tag-button" id="clearButton" type="button" title="清空当前 tag" aria-label="清空当前 tag">×</button>
-            </section>
-
-            <nav class="command-actions" aria-label="搜索动作">
-              <label class="count-control" title="本次最多加载图片数">
-                <span>数量</span>
-                <input id="countInput" type="number" min="1" step="1" value="200">
-              </label>
-              <button class="solid-button" id="searchButton" type="submit" title="搜索">
-                <span class="button-icon search-icon" aria-hidden="true"></span>
-                <span>搜索</span>
-              </button>
-              <button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button>
-            </nav>
-
-            <div class="suggestions" aria-label="最近 tag" hidden>
-              <div class="history-list" id="historyList"></div>
+              <button class="clear-button" id="clearButton" type="button" aria-label="清空当前标签" title="清空当前标签"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
+              <button class="search-submit" id="searchButton" type="submit" aria-label="搜索"><svg aria-hidden="true"><use href="#i-search"/></svg></button>
             </div>
+            <div class="search-bottom">
+              <div class="suggestion-row" id="searchHint"><span>找点灵感</span><button data-search-tags="scenery" type="button">风景 <span>scenery</span></button><button data-search-tags="sky" type="button">天空 <span>sky</span></button><button data-search-tags="ocean" type="button">海边 <span>ocean</span></button><button data-search-tags="night" type="button">夜色 <span>night</span></button></div>
+              <div class="search-options"><label class="count-control" for="countInput">加载数量 <input id="countInput" type="number" min="1" step="1" value="200"></label><button class="soft-button danger" id="stopSearchButton" type="button" hidden>停止</button></div>
+            </div>
+            <div class="suggestions" aria-label="最近搜索标签" hidden><span class="history-label">最近使用</span><div class="history-list" id="historyList"></div></div>
           </form>
+          <p class="search-help">多个标签以空格分隔，回车搜索。</p>
         </section>
 
-        <section class="view-head" data-view-panel="favorites" aria-label="收藏">
-          <div>
-            <p class="eyebrow">favorites</p>
-            <h1>收藏</h1>
-          </div>
+        <section class="collections" aria-label="灵感专题">
+          <button class="collection collection-green" data-search-tags="scenery" type="button"><div><span class="collection-label">换个角度看世界</span><h2>远山，近海。</h2><p>把目光交给自然 <svg aria-hidden="true"><use href="#i-arrow"/></svg></p></div><div class="collection-art" aria-hidden="true"><img src="assets/images/collection-coast.svg" alt=""><img src="assets/images/collection-mountains.svg" alt=""></div></button>
+          <button class="collection collection-sand" data-search-tags="sunset" type="button"><div><span class="collection-label">收集日常的小美好</span><h2>光落下的地方。</h2><p>让思绪慢下来 <svg aria-hidden="true"><use href="#i-arrow"/></svg></p></div><div class="collection-art" aria-hidden="true"><img src="assets/images/collection-dunes.svg" alt=""><img src="assets/images/collection-field.svg" alt=""></div></button>
         </section>
 
-        <section class="view-head" data-view-panel="settings" aria-label="设置">
-          <div>
-            <p class="eyebrow">settings</p>
-            <h1>设置</h1>
-          </div>
-          <div class="toolbar">
-            <button class="solid-button" id="saveSettingsButton" type="button">保存设置</button>
-          </div>
-        </section>
-
-        <section class="gallery-workspace" id="gallerySurface">
+        <section class="gallery-workspace" id="gallerySurface" tabindex="-1" aria-labelledby="galleryTitle">
+          <div class="browse-nav"><nav class="view-tabs" aria-label="图库视图"><button class="view-tab is-active" data-view-button="home" type="button">发现</button><button class="view-tab" data-view-button="search" type="button">搜索结果</button><button class="view-tab" data-view-button="favorites" type="button">我的收藏 <span class="badge favorite-summary">0</span></button></nav><span class="gallery-note">留一点时间，发现喜欢。</span></div>
+          <div class="gallery-heading"><div class="gallery-title"><h2 id="galleryTitle">发现好作品</h2><span class="result-count" id="resultCount" aria-live="polite">正在加载</span></div><div class="density-control gallery-density" aria-label="图片密度"><button class="density-button" data-density="compact" type="button">紧凑</button><button class="density-button is-active" data-density="comfortable" type="button">舒适</button><button class="density-button" data-density="wide" type="button">宽松</button></div></div>
           <section class="filter-rail" aria-label="结果筛选">
             <div class="filters">
               <div class="filter-control">
                 <button class="filter-trigger" data-filter-trigger="rating" type="button" aria-haspopup="listbox" aria-expanded="false">
-                  <span>级别</span>
+                  <span>评级</span>
                   <strong id="ratingLabel">全部</strong>
                 </button>
-                <div class="filter-menu" role="listbox" aria-label="级别筛选">
+                <div class="filter-menu" role="listbox" aria-label="评级筛选">
                   <button class="filter-option" data-filter="rating" data-value="any" type="button" role="option"><strong>全部</strong></button>
                   <button class="filter-option" data-filter="rating" data-value="g" type="button" role="option"><strong>G</strong></button>
                   <button class="filter-option" data-filter="rating" data-value="s" type="button" role="option"><strong>S</strong></button>
@@ -165,43 +129,18 @@
               </div>
             </div>
 
-            <div class="status-hud">
-              <div class="hud"><span class="hud-dot" aria-hidden="true"></span><span id="statusText">等待输入 tag</span></div>
-            </div>
+            <button class="reset-filters" id="resetFiltersButton" type="button" hidden>清除筛选 <svg aria-hidden="true"><use href="#i-close"/></svg></button>
           </section>
-
-          <div class="progress-track" aria-hidden="true">
-            <span id="progressBar"></span>
-          </div>
-
-          <section class="notice" id="noticeBox" hidden></section>
-
-          <section class="active-query" aria-live="polite">
-            <div class="active-tags" id="currentTags">
-              <span class="tag-chip is-muted">等待输入</span>
-            </div>
-          </section>
-
-          <section class="empty-state" id="emptyState">
-            <div class="empty-panel">
-              <div class="empty-search-line">
-                <span class="search-glyph" aria-hidden="true"></span>
-                <span>正在加载图库</span>
-              </div>
-              <div class="ghost-grid" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-              </div>
-              <div class="empty-copy">
-                <p>等待图片</p>
-                <span>图片结果会显示在这里。</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="gallery" id="gallery" aria-label="图片结果"></section>
+          <div class="status-hud" role="status"><span class="hud-dot" aria-hidden="true"></span><span id="statusText">正在加载热门</span><button class="retry-button" id="retryButton" type="button" hidden>重试</button></div>
+          <div class="progress-track" aria-hidden="true"><span id="progressBar"></span></div>
+          <section class="notice" id="noticeBox" role="alert" hidden></section>
+          <section class="active-query" aria-label="当前搜索标签"><div class="active-tags" id="currentTags"></div></section>
+          <section class="empty-state" id="emptyState"><div class="empty-panel"><div class="empty-search-line"><span class="search-glyph" aria-hidden="true"><svg><use href="#i-search"/></svg></span><span>寻找喜欢的画面</span></div><div class="ghost-grid" aria-hidden="true"><span></span><span></span><span></span><span></span></div><div class="empty-copy"><p>正在加载图库</p><span>稍等片刻，灵感即将出现。</span></div><button class="soft-button" id="emptyResetButton" type="button" hidden>清除筛选</button></div></section>
+          <section class="gallery" id="gallery" aria-label="图片结果" aria-busy="false"></section>
+          <div class="gallery-end" id="galleryEnd" hidden><span></span><p>已经看完这组灵感了</p><span></span></div>
         </section>
 
+        <section class="settings-heading view-head" data-view-panel="settings"><div><p class="eyebrow">MAKE IT YOUR OWN</p><h1>浏览设置</h1><p class="settings-description">让图库更适合你的浏览习惯。</p></div><button class="solid-button" id="saveSettingsButton" type="button">保存设置</button></section>
         <section class="settings-workspace" id="settingsSurface">
           <div class="settings-grid">
             <section class="settings-panel">
@@ -212,7 +151,7 @@
                   <input class="number-input" id="settingsCountInput" type="number" min="1" value="200">
                 </label>
                 <label class="setting-row">
-                  <span><strong>默认 rating</strong><p>影响新搜索的远程过滤。</p></span>
+                  <span><strong>默认评级</strong><p>筛选新检索接收到的作品。</p></span>
                   <select class="select-input" id="settingsRatingSelect">
                     <option value="any">全部</option>
                     <option value="g">G 安全</option>
@@ -222,7 +161,7 @@
                   </select>
                 </label>
                 <label class="setting-row">
-                  <span><strong>默认排序</strong><p>应用到当前图库筛选。</p></span>
+                  <span><strong>默认排序</strong><p>调整当前图库的浏览顺序。</p></span>
                   <select class="select-input" id="settingsSortSelect">
                     <option value="relevance">默认</option>
                     <option value="score">得分</option>
@@ -245,45 +184,30 @@
                     <button class="density-button" data-density="wide" type="button">宽</button>
                   </div>
                 </div>
-                <div class="setting-row">
-                  <span><strong>recent tags</strong><p>保留最近输入，用于搜索建议。</p></span>
-                  <button class="switch is-on" type="button" aria-label="recent tags"></button>
-                </div>
-                <div class="setting-row">
-                  <span><strong>本地缓存收藏</strong><p>收藏保存在浏览器本地。</p></span>
-                  <button class="switch is-on" type="button" aria-label="本地缓存收藏"></button>
-                </div>
+                <label class="setting-row" for="settingsCaptionsInput">
+                  <span><strong>作品信息</strong><p>在图片下方显示作者与作品编号。</p></span>
+                  <input id="settingsCaptionsInput" type="checkbox" checked>
+                </label>
+                <p class="settings-note">收藏和最近标签保存在当前浏览器中。</p>
               </div>
             </section>
           </div>
         </section>
+        <footer class="site-footer"><span class="footer-brand">danbooru <span>/</span> search &amp; discover</span><p>发现 · 搜索 · 收藏</p><a href="https://danbooru.donmai.us" target="_blank" rel="noopener noreferrer">访问 Danbooru <span aria-hidden="true">↗</span></a></footer>
       </main>
-
-      <nav class="mobile-nav" aria-label="移动端导航">
-        <button class="mobile-tab is-active" data-view-button="home" type="button"><span class="nav-icon icon-home" aria-hidden="true"></span><span>主页</span></button>
-        <button class="mobile-tab" data-view-button="search" type="button"><span class="nav-icon icon-search" aria-hidden="true"></span><span>搜索</span></button>
-        <button class="mobile-tab" data-view-button="favorites" type="button"><span class="nav-icon icon-fav" aria-hidden="true"></span><span>收藏</span></button>
-        <button class="mobile-tab" data-view-button="settings" type="button"><span class="nav-icon icon-settings" aria-hidden="true"></span><span>设置</span></button>
-      </nav>
-
-      <div class="sr-only" aria-hidden="true">
-        <span id="inspectorMode">待检索</span>
-        <span id="inspectorResultCount">0</span>
-        <span id="inspectorFavoriteCount">0</span>
-        <span id="inspectorTags"></span>
-      </div>
+      <div class="sr-only" aria-hidden="true"><span id="inspectorMode"></span><span id="inspectorResultCount">0</span><span id="inspectorFavoriteCount">0</span><span id="inspectorTags"></span></div>
     </div>
-
-    <dialog class="preview-dialog" id="previewDialog" tabindex="-1">
+    <dialog class="preview-dialog" id="previewDialog" tabindex="-1" aria-labelledby="dialogTitle">
       <div class="dialog-surface">
         <section class="stage">
           <div class="dialog-toolbar">
             <span id="dialogPosition">0 / 0</span>
-            <button class="icon-button close-button" id="closeDialogButton" type="button" aria-label="关闭预览">Esc 关闭</button>
+            <button class="icon-button close-button" id="closeDialogButton" type="button" aria-label="关闭预览"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
           </div>
           <div class="stage-body" id="dialogMedia">
             <button class="nav-arrow prev" id="dialogPrevButton" type="button" title="上一张" aria-label="上一张">‹</button>
             <img id="dialogImage" alt="">
+            <p class="dialog-image-error" id="dialogImageError" hidden>大图暂时无法加载，可通过下方链接打开原图片或 Danbooru 作品页。</p>
             <button class="nav-arrow next" id="dialogNextButton" type="button" title="下一张" aria-label="下一张">›</button>
           </div>
         </section>
@@ -291,19 +215,19 @@
         <aside class="dialog-meta" id="dialogMeta">
           <div class="meta-head">
             <div>
-              <p class="status-label">Inspection</p>
+              <p class="status-label">A MOMENT WORTH KEEPING</p>
               <h2 id="dialogTitle">Post</h2>
             </div>
             <div class="dialog-actions">
               <button class="favorite-button favorite-button-dialog" id="dialogFavoriteButton" type="button" aria-label="收藏当前图片" aria-pressed="false">
-                <span class="heart-icon" aria-hidden="true"></span>
+                <svg aria-hidden="true"><use href="#i-heart"/></svg>
               </button>
               <span class="dialog-rating-pill" id="dialogRatingBadge">ALL</span>
             </div>
           </div>
 
           <dl class="meta-list">
-            <dt>评分</dt><dd id="dialogRatingText">-</dd>
+            <dt>评级</dt><dd id="dialogRatingText">-</dd>
             <dt>尺寸</dt><dd id="dialogDimensions">-</dd>
             <dt>文件大小</dt><dd id="dialogSize">-</dd>
             <dt>得分</dt><dd id="dialogScorePill">0</dd>
@@ -323,6 +247,7 @@
         <button class="image-button" type="button">
           <img loading="lazy" decoding="async" alt="">
           <span class="save-mark" aria-hidden="true">✓</span>
+          <span class="image-error" hidden>图片未能加载<br>仍可打开预览或原作品</span>
           <span class="post-overlay">
             <span class="post-line"><strong class="post-id"></strong><span class="post-size"></span></span>
             <span class="post-line"><span class="score-label"></span><span class="favorite-count-label"></span></span>
@@ -330,13 +255,15 @@
             <span class="post-tags"></span>
           </span>
         </button>
+        <div class="post-caption"><span class="post-artist"></span><span class="post-caption-id"></span></div>
         <a class="post-link" target="_blank" rel="noopener noreferrer" aria-label="打开 Danbooru">↗</a>
         <button class="favorite-button favorite-button-card" type="button" aria-label="收藏图片" aria-pressed="false">
-          <span class="heart-icon" aria-hidden="true"></span>
+          <svg aria-hidden="true"><use href="#i-heart"/></svg>
         </button>
       </article>
     </template>
 
-    <script src="js/app.js?v=20260707-mobile-search"></script>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script src="js/app.js?v=20261023-discover"></script>
   </body>
 </html>
